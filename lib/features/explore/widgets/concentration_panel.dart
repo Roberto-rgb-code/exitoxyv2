@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../models/concentration_result.dart';
+import 'package:kitit_v2/models/concentration_result.dart';
 
 class ConcentrationPanel extends StatelessWidget {
   final ConcentrationResult result;
@@ -8,59 +8,71 @@ class ConcentrationPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final txt = Theme.of(context).textTheme;
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Índice de concentración', style: txt.titleMedium),
+        const SizedBox(height: 12),
+
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
-            Container(width: 40, height: 4,
-              decoration: BoxDecoration(color: Colors.grey[400], borderRadius: BorderRadius.circular(2))),
-            const SizedBox(height: 12),
-            Text('Concentración del mercado', style: txt.titleMedium),
-            const SizedBox(height: 6),
-            Text('${result.activity}${result.postalCode != null ? ' · CP ${result.postalCode}' : ''}', style: txt.bodyMedium),
-            const SizedBox(height: 14),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _metric('Empresas', '${result.nFirms}'),
-                _metric('HHI', result.hhi.toStringAsFixed(0)),
-                _metric('CR4', '${(result.cr4 * 100).toStringAsFixed(1)}%'),
-                _metric('Nivel', _levelLabel(result.level)),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Align(alignment: Alignment.centerLeft, child: Text('Top empresas', style: txt.titleSmall)),
-            const SizedBox(height: 8),
-            Column(
-              children: result.topFirms.map((e) => Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(child: Text(e.key, overflow: TextOverflow.ellipsis)),
-                  Text('${(e.value * 100).toStringAsFixed(1)}%'),
-                ],
-              )).toList(),
-            ),
+            _metric('HHI', result.hhi.toStringAsFixed(0)),
+            _metric('CR4', '${result.cr4.toStringAsFixed(1)}%'),
+            _badgeLevel(_levelLabel(result.level), Color(result.color)),
           ],
         ),
-      ),
+
+        const SizedBox(height: 16),
+        Text('Top cadenas', style: txt.titleSmall),
+        const SizedBox(height: 6),
+        if (result.topChains.isEmpty)
+          const Text('Sin datos de cadenas')
+        else
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: result.topChains.take(10).map((e) => Row(
+              children: [
+                const Icon(Icons.storefront, size: 16),
+                const SizedBox(width: 6),
+                Expanded(child: Text(e)),
+              ],
+            )).toList(),
+          ),
+      ],
     );
   }
 
-  Widget _metric(String label, String value) => Column(
-    children: [
-      Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-      Text(label, style: const TextStyle(color: Colors.grey)),
-    ],
-  );
+  Widget _metric(String label, String value) {
+    return Column(
+      children: [
+        Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 4),
+        Text(label, style: const TextStyle(color: Colors.grey)),
+      ],
+    );
+  }
 
-  String _levelLabel(ConcentrationLevel level) {
+  Widget _badgeLevel(String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.14),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color),
+      ),
+      child: Text(label, style: TextStyle(color: color, fontWeight: FontWeight.w600)),
+    );
+  }
+
+  String _levelLabel(String level) {
     switch (level) {
-      case ConcentrationLevel.low:      return 'Baja';
-      case ConcentrationLevel.moderate: return 'Moderada';
-      case ConcentrationLevel.high:     return 'Alta';
-      case ConcentrationLevel.veryHigh: return 'Muy alta';
+      case 'low': return 'Baja';
+      case 'moderate': return 'Moderada';
+      case 'high': return 'Alta';
+      case 'veryHigh': return 'Muy alta';
+      default: return '—';
     }
   }
 }

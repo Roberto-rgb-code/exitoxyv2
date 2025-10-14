@@ -1,53 +1,64 @@
+// lib/services/mysql_connector.dart
 import 'package:mysql_client/mysql_client.dart';
+import '../core/config.dart';
 
 class MySQLConnector {
   static final connector = MySQLConnectionPool(
-    host: "10.0.2.2",
-    port: 3306,
-    userName: "root",
-    password: "kevin",
-    databaseName: "kikit",
-    maxConnections: 100,
+    host: Config.mysqlHost,
+    port: Config.mysqlPort,
+    userName: Config.mysqlUsername,
+    password: Config.mysqlPassword,
+    databaseName: Config.mysqlDatabase,
+    maxConnections: 50,
   );
 
+  /// Devuelve: [agebs(List<String>), geometry(List<dynamic>), demografic(List<Map>)]
   static Future<List> getData(String cp) async {
-    final geometry = <List>[];
+    final geometry = <dynamic>[];
     final demografic = <Map<String, dynamic>>[];
     final agebs = <String>[];
 
+    print('🗄️ Ejecutando consulta MySQL para CP: $cp');
     final result = await connector.execute(
-      "select * from agebs where agebs.codigoPostal=:CP",
+      """
+      SELECT idAgeb, geometry, numTotalFemenino, numTotalMasculino, numTotalHabitantes
+      FROM agebs
+      WHERE codigoPostal = :CP
+      """,
       {'CP': cp},
     );
+    print('📋 Filas encontradas: ${result.rows.length}');
 
     for (final row in result.rows) {
-      geometry.add([row.assoc()["geometry"]]);
-      agebs.add(row.assoc()["idAgeb"]!);
+      final m = row.assoc();
+      geometry.add(m["geometry"]);
+      agebs.add(m["idAgeb"] ?? '');
       demografic.add({
-        'f': row.assoc()["numTotalFemenino"],
-        'm': row.assoc()["numTotalMasculino"],
-        't': row.assoc()["numTotalHabitantes"],
+        'f': int.tryParse('${m["numTotalFemenino"]}') ?? 0,
+        'm': int.tryParse('${m["numTotalMasculino"]}') ?? 0,
+        't': int.tryParse('${m["numTotalHabitantes"]}') ?? 0,
       });
     }
     return [agebs, geometry, demografic];
   }
 
   static Future<List> getPolygonBYageb(String ageb) async {
-    final geometry = <List>[];
+    final geometry = <dynamic>[];
     final result = await connector.execute(
-      "select * from agebs where agebs.idAgeb=:idAgeb",
+      "SELECT geometry FROM agebs WHERE idAgeb = :idAgeb LIMIT 1",
       {'idAgeb': ageb},
     );
     for (final row in result.rows) {
-      geometry.add([row.assoc()["geometry"]]);
+      geometry.add(row.assoc()["geometry"]);
     }
     return geometry;
   }
 
+  /// Debe existir una tabla `comercios` con columnas lat/lon (o ajusta nombres aquí).
   static Future<List<Map<String, dynamic>>> getMarkersbyCP(String cp) async {
     final out = <Map<String, dynamic>>[];
     final result = await connector.execute(
-      "select * from comercios where codigoPostal=:CP",
+      "SELECT * FROM comercios WHERE codigoPostal = :CP",
       {'CP': cp},
     );
     for (final row in result.rows) {
@@ -58,7 +69,7 @@ class MySQLConnector {
 
   static Future<List<Map<String, dynamic>>> getDemograficData() async {
     final out = <Map<String, dynamic>>[];
-    final result = await connector.execute("select * from demograficos");
+    final result = await connector.execute("SELECT * FROM demograficos");
     for (final row in result.rows) {
       out.add(row.assoc());
     }

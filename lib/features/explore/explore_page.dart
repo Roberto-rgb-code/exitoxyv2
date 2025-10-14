@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart' show CameraUpdate;
 
-import '../../core/debounce.dart';
 import 'explore_controller.dart';
 import 'map/explore_map.dart';
+import 'widgets/activity_prompt.dart';
+import '../../widgets/custom_info_window.dart';
+import '../../widgets/concentration_legend.dart';
+import '../../widgets/recommendation_panel.dart';
+import '../../widgets/demographic_overlay.dart';
+import '../../widgets/marker_counter.dart';
+import '../../widgets/commercial_modal.dart';
 
 class ExplorePage extends StatefulWidget {
   const ExplorePage({super.key});
@@ -14,144 +19,224 @@ class ExplorePage extends StatefulWidget {
 }
 
 class _ExplorePageState extends State<ExplorePage> {
-  final _debounce = Debouncer(milliseconds: 450);
   final _searchCtrl = TextEditingController();
+  bool _searching = false;
 
   @override
   void dispose() {
     _searchCtrl.dispose();
-    _debounce.dispose();
     super.dispose();
   }
 
-  Future<void> _runSearch(BuildContext context) async {
+  Future<void> _runSearch() async {
     final q = _searchCtrl.text.trim();
-    if (q.isEmpty) return;
-    await context.read<ExploreController>().geocodeAndMove(q);
+    print('🔍 _runSearch() llamado con: "$q"');
+    if (q.isEmpty) {
+      print('⚠️ Búsqueda vacía, cancelando');
+      return;
+    }
+
+    print('🚀 Iniciando búsqueda para: "$q"');
+    setState(() => _searching = true);
+    try {
+      await context.read<ExploreController>().geocodeAndMove(q);
+      print('✅ Búsqueda completada exitosamente');
+    } catch (e) {
+      print('❌ Error en búsqueda: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No se encontró esa dirección')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _searching = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final c = context.watch<ExploreController>();
+    final insets = MediaQuery.of(context).padding;
+    final exploreController = context.watch<ExploreController>();
+
+    // Cargar marcadores comerciales cuando se selecciona una zona
+    if (exploreController.activeCP != null && !exploreController.hasPaintedAZone) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        exploreController.loadCommercialMarkers(context);
+      });
+    }
+
+    // Mostrar modal comercial cuando se selecciona un marcador
+    if (exploreController.selectedCommercialData != null && 
+        exploreController.selectedCommercialPosition != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _showCommercialModal(context, exploreController);
+      });
+    }
 
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.surface,
+      appBar: AppBar(title: const Text('Éxito XY')),
       body: Stack(
         children: [
           const ExploreMap(),
-
-          // Filtros tipo chip
+          
+          // Custom Info Window
+          if (exploreController.customInfoWindowController != null)
+            CustomInfoWindow(
+              controller: exploreController.customInfoWindowController!,
+              height: 200,
+              width: 250,
+              offset: 100,
+            ),
+          
+          // Search bar
           Positioned(
-            top: MediaQuery.of(context).padding.top + 8,
             left: 12,
             right: 12,
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 2),
+            top: insets.top + 12,
+            child: Material(
+              elevation: 2,
+              borderRadius: BorderRadius.circular(14),
+              color: Colors.white,
               child: Row(
-                children: const [
-                  _FilterChip(icon: Icons.attach_money_rounded, label: 'Precio'),
-                  SizedBox(width: 8),
-                  _FilterChip(icon: Icons.square_foot_rounded, label: 'm²'),
-                  SizedBox(width: 8),
-                  _FilterChip(icon: Icons.bed_rounded, label: 'Cuartos'),
-                  SizedBox(width: 8),
-                  _FilterChip(icon: Icons.bathtub_rounded, label: 'Baños'),
-                  SizedBox(width: 8),
-                  _FilterChip(icon: Icons.local_parking_rounded, label: 'Cajones'),
+                children: [
+                  const SizedBox(width: 8),
+                  const Icon(Icons.search_rounded),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextField(
+                      controller: _searchCtrl,
+                      decoration: const InputDecoration(
+                        hintText: 'Buscar dirección o lugar',
+                        border: InputBorder.none,
+                      ),
+                      textInputAction: TextInputAction.search,
+                      onSubmitted: (_) => _runSearch(),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: _searching ? null : _runSearch,
+                    icon: _searching
+                        ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Icon(Icons.arrow_forward_rounded),
+                  ),
+                  // Botón de prueba temporal
+                  IconButton(
+                    onPressed: () {
+                      _searchCtrl.text = 'centro';
+                      _runSearch();
+                    },
+                    icon: const Icon(Icons.bug_report, color: Colors.red),
+                  ),
                 ],
               ),
             ),
           ),
-
-          // Buscador superior
-          Positioned(
-            top: MediaQuery.of(context).padding.top + 64,
-            left: 12,
+          
+          // Activity prompt
+          const Positioned(
             right: 12,
-            child: Material(
-              elevation: 3,
-              borderRadius: BorderRadius.circular(16),
-              color: Theme.of(context).colorScheme.surface,
-              child: TextField(
-                controller: _searchCtrl,
-                textInputAction: TextInputAction.search,
-                onSubmitted: (_) => _runSearch(context),
-                onChanged: (_) => _debounce.run(() => _runSearch(context)),
-                decoration: InputDecoration(
-                  hintText: 'Ingresa una dirección o zona',
-                  prefixIcon: const Icon(Icons.search_rounded),
-                  suffixIcon: IconButton(
-                    icon: const Icon(Icons.clear_rounded),
-                    onPressed: () {
-                      _searchCtrl.clear();
-                      FocusScope.of(context).unfocus();
-                    },
-                  ),
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide(color: Theme.of(context).dividerColor),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide(color: Theme.of(context).dividerColor),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide(
-                        color: Theme.of(context).colorScheme.primary, width: 1.6),
-                  ),
-                ),
+            bottom: 18,
+            child: ActivityPrompt(),
+          ),
+          
+          // Concentration legend
+          if (exploreController.showConcentrationLayer)
+            Positioned(
+              right: 12,
+              top: insets.top + 80,
+              child: const ConcentrationLegend(),
+            ),
+          
+          // Demographic overlay
+          if (exploreController.demographyAgg != null && exploreController.activeCP != null)
+            Positioned(
+              top: insets.top + 80,
+              left: 12,
+              right: 12,
+              child: DemographicOverlay(
+                demography: exploreController.demographyAgg!,
+                postalCode: exploreController.activeCP,
               ),
             ),
-          ),
-
-          // Botón de recenter
-          Positioned(
-            right: 16,
-            bottom: 24 + MediaQuery.of(context).padding.bottom,
-            child: FloatingActionButton(
-              heroTag: 'recenter',
-              onPressed: () async {
-                final p = c.lastPoint;
-                if (p == null) return;
-                await c.mapCtrl?.animateCamera(
-                  CameraUpdate.newLatLngZoom(p, 15),
-                );
-              },
-              child: const Icon(Icons.my_location_rounded),
+          
+          // Marker counter
+          if (exploreController.countMarkers > 0)
+            Positioned(
+              top: insets.top + 200,
+              right: 12,
+              child: MarkerCounter(count: exploreController.countMarkers),
             ),
-          ),
+
+          // Recommendations button
+          if (exploreController.recommendations.isNotEmpty)
+            Positioned(
+              left: 12,
+              bottom: 18,
+              child: FloatingActionButton.extended(
+                onPressed: () => _showRecommendations(context, exploreController),
+                icon: const Icon(Icons.lightbulb_outline),
+                label: const Text('Recomendaciones'),
+                backgroundColor: Colors.amber,
+                foregroundColor: Colors.white,
+              ),
+            ),
         ],
       ),
     );
   }
-}
 
-class _FilterChip extends StatelessWidget {
-  const _FilterChip({required this.icon, required this.label});
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: cs.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: cs.outlineVariant),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, size: 18, color: cs.primary),
-          const SizedBox(width: 8),
-          Text(label, style: TextStyle(color: cs.onSurface)),
-        ],
+  void _showRecommendations(BuildContext context, ExploreController controller) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.7,
+        maxChildSize: 0.9,
+        minChildSize: 0.5,
+        builder: (context, scrollController) => Container(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[400],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Expanded(
+                child: SingleChildScrollView(
+                  controller: scrollController,
+                  child: RecommendationPanel(
+                    recommendations: controller.recommendations,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
+  }
+
+  void _showCommercialModal(BuildContext context, ExploreController controller) {
+    if (controller.selectedCommercialData != null && 
+        controller.selectedCommercialPosition != null) {
+      showModalBottomSheet(
+        backgroundColor: Colors.transparent,
+        context: context,
+        builder: (BuildContext context) {
+          return CommercialModal(
+            commercialData: controller.selectedCommercialData!,
+            coordinates: controller.selectedCommercialPosition!,
+          );
+        },
+      ).then((_) {
+        // Limpiar la selección después de cerrar el modal
+        controller.clearCommercialSelection();
+      });
+    }
   }
 }

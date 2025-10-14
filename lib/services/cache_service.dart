@@ -1,19 +1,38 @@
-import '../models/concentration_result.dart';
+import 'package:kitit_v2/models/concentration_result.dart';
 
 class CacheService {
-  final Map<String, ConcentrationResult> _mem = {};
+  static final Map<String, ConcentrationResult> _cache = {};
 
-  String _key(String activity, String? postalCode) =>
-      '${activity.toLowerCase().trim()}|${postalCode ?? 'none'}';
+  /// Genera una clave única para el cache
+  static String _generateKey(String activity, String postalCode) {
+    return '${activity.toLowerCase().trim()}|${postalCode.trim()}';
+  }
 
-  bool has(String activity, String? postalCode) =>
-      _mem.containsKey(_key(activity, postalCode));
+  /// Obtiene un resultado del cache
+  static ConcentrationResult? get(String activity, String postalCode) {
+    final key = _generateKey(activity, postalCode);
+    return _cache[key];
+  }
 
-  ConcentrationResult? get(String activity, String? postalCode) =>
-      _mem[_key(activity, postalCode)];
+  /// Guarda un resultado en el cache
+  static void put(String activity, String postalCode, ConcentrationResult result) {
+    final key = _generateKey(activity, postalCode);
+    _cache[key] = result;
+  }
 
-  void put(String activity, String? postalCode, ConcentrationResult v) =>
-      _mem[_key(activity, postalCode)] = v;
+  /// Limpia todo el cache
+  static void clear() {
+    _cache.clear();
+  }
 
-  void clear() => _mem.clear();
+  /// Obtiene el tamaño del cache
+  static int size() {
+    return _cache.length;
+  }
+
+  /// Verifica si existe una entrada en el cache
+  static bool contains(String activity, String postalCode) {
+    final key = _generateKey(activity, postalCode);
+    return _cache.containsKey(key);
+  }
 }

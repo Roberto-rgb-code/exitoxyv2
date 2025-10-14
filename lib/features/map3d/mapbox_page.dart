@@ -11,18 +11,15 @@ class MapboxPage extends StatefulWidget {
 class _MapboxPageState extends State<MapboxPage> {
   MapboxMap? _map;
 
-  // Puedes sobreescribir con: --dart-define=STYLE_URI=mapbox://styles/...
   final String _styleUri = const String.fromEnvironment(
     'STYLE_URI',
     defaultValue: 'mapbox://styles/kevinroberto/cmgharq80006y01ryg3vl8zc5',
   );
 
   final CameraOptions _camera = CameraOptions(
-    // Guadalajara aprox
-    center: Point(coordinates: Position(-103.349609, 20.659699)).toJson(),
+    center: Point(coordinates: Position(-103.349609, 20.659699)),
     zoom: 13.0,
     pitch: 60.0,
-    bearing: 0.0,
   );
 
   @override

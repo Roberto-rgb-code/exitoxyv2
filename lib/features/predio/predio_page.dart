@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:provider/provider.dart';
-import '../../core/app_state.dart';
-import '../../services/visorurbano_service.dart';
-import '../../widgets/panel_card.dart';
+
+import '../../services/predio_service.dart';
 
 class PredioPage extends StatefulWidget {
   const PredioPage({super.key});
@@ -13,83 +11,123 @@ class PredioPage extends StatefulWidget {
 }
 
 class _PredioPageState extends State<PredioPage> {
-  bool loading = false;
-  Map<String, dynamic>? predio;
+  GoogleMapController? _map;
+  Marker? _marker;
 
-  Future<void> _consult(LatLng p) async {
-    setState(() { loading = true; predio = null; });
-    try {
-      final data = await VisorUrbanoService.predioPorLatLon(p.latitude, p.longitude);
-      if (data.isNotEmpty) predio = Map<String, dynamic>.from(data[0]);
-      setState(() {});
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error VisorUrbano: $e')),
+  static const _camera = CameraPosition(
+    target: LatLng(20.6599162, -103.3450723), // GDL
+    zoom: 14,
+  );
+
+  @override
+  void dispose() {
+    _map?.dispose();
+    super.dispose();
+  }
+
+  Future<void> _onTap(LatLng p) async {
+    // Mostrar indicador de carga
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Buscando información del predio...'),
+        duration: Duration(seconds: 1),
+      ),
+    );
+
+    setState(() {
+      _marker = Marker(
+        markerId: const MarkerId('predio'),
+        position: p,
+        anchor: const Offset(0.5, 1),
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
       );
-    } finally {
-      if (mounted) setState(() => loading = false);
+    });
+
+    try {
+      final info = await PredioService().fetchPredioByLatLng(p);
+      if (!mounted) return;
+
+      if (info == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No se encontró información del predio')),
+        );
+        return;
+      }
+
+      await showModalBottomSheet(
+        context: context,
+        isScrollControlled: false,
+        builder: (_) => _PredioSheet(info: info),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final p = context.select<AppState, LatLng?>((s) => s.lastPoint);
+    final markers = <Marker>{};
+    if (_marker != null) markers.add(_marker!);
+
     return Scaffold(
       appBar: AppBar(title: const Text('Predio')),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          PanelCard(
-            title: 'Ubicación',
-            children: [
-              Text(p == null
-                  ? 'Selecciona un punto en Explorar (tap largo) o buscador.'
-                  : 'Punto seleccionado: ${p.latitude.toStringAsFixed(6)}, ${p.longitude.toStringAsFixed(6)}'),
-              const SizedBox(height: 8),
-              FilledButton.icon(
-                onPressed: (p == null || loading) ? null : () => _consult(p),
-                icon: const Icon(Icons.gavel_rounded),
-                label: Text(loading ? 'Consultando...' : 'Consultar predio'),
-              ),
-            ],
-          ),
-          if (predio != null)
-            PanelCard(
-              title: 'Datos del predio',
-              children: [
-                _row('Clave', '${predio!['clave']}'),
-                _row('Tipo', '${predio!['tipo']}'),
-                _row('Ubicación', '${predio!['ubicacion']}'),
-                _row('Colonia', '${predio!['colonia']}'),
-                _row('Sup. legal', '${predio!['superficieLegal']} m²'),
-                _row('Sup. carto', '${predio!['superficieCarto']} m²'),
-                _row('Construcción', '${predio!['superficieConstruccion']} m²'),
-                _row('Frente', '${predio!['frente']} m'),
-                _row('Cos', '${predio!['cos']}'),
-                _row('Cus', '${predio!['cus']}'),
-                const SizedBox(height: 8),
-                const Text('Usos permitidos:'),
-                const SizedBox(height: 4),
-                Wrap(
-                  spacing: 6, runSpacing: 6,
-                  children: List<String>.from(predio!['zonificacion_default']['usos_permitidos'] ?? [])
-                      .map((e) => Chip(label: Text(e))).toList(),
-                ),
-              ],
-            ),
-        ],
+      body: GoogleMap(
+        initialCameraPosition: _camera,
+        onMapCreated: (c) => _map = c,
+        markers: markers,
+        onTap: _onTap,
+        myLocationButtonEnabled: false,
+        zoomControlsEnabled: true,
       ),
     );
   }
+}
 
-  Widget _row(String k, String v) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 3),
-    child: Row(
-      children: [
-        SizedBox(width: 140, child: Text('$k:', style: const TextStyle(fontWeight: FontWeight.bold))),
-        Expanded(child: Text(v)),
-      ],
-    ),
-  );
+class _PredioSheet extends StatelessWidget {
+  final PredioInfo info;
+  const _PredioSheet({required this.info});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[400], borderRadius: BorderRadius.circular(2))),
+            const SizedBox(height: 12),
+            Text('Información de predio', style: t.titleMedium),
+            const SizedBox(height: 12),
+            ListTile(
+              dense: true,
+              title: const Text('Cuenta catastral'),
+              trailing: Text(info.cuentaCatastral),
+            ),
+            ListTile(
+              dense: true,
+              title: const Text('Uso de suelo'),
+              trailing: Text(info.usoDeSuelo),
+            ),
+            ListTile(
+              dense: true,
+              title: const Text('Superficie'),
+              trailing: Text('${info.superficie.toStringAsFixed(0)} m²'),
+            ),
+            const SizedBox(height: 6),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(info.domicilio, style: t.bodyMedium),
+            ),
+            const SizedBox(height: 10),
+          ],
+        ),
+      ),
+    );
+  }
 }

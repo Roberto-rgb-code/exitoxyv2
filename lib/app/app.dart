@@ -9,7 +9,7 @@ import 'package:kitit_v2/features/ageb/ageb_page.dart';
 import 'package:kitit_v2/features/predio/predio_page.dart';
 import 'package:kitit_v2/features/three_d/three_d_page.dart';
 
-// Bottom nav (ruta corregida)
+// Bottom nav
 import 'package:kitit_v2/widgets/bottom_nav.dart';
 
 class KitItApp extends StatelessWidget {
@@ -44,7 +44,7 @@ class _HomeShellState extends State<HomeShell> {
   late final List<Widget> _pages = [
     ExplorePage(),
     CompetitionPage(),
-    DemographyPage(),
+    DemographyPage(), // lee agg/cp del ExploreController si no se le pasan
     AgebPage(),
     PredioPage(),
     ThreeDPage(),
@@ -59,13 +59,13 @@ class _HomeShellState extends State<HomeShell> {
       bottomNavigationBar: BottomNav(
         index: _index,
         onChanged: (i) => setState(() => _index = i),
-        items: [
-          const BottomNavItem(icon: Icons.explore_rounded, label: 'Explorar'),
-          const BottomNavItem(icon: Icons.leaderboard_rounded, label: 'Competencia'),
-          const BottomNavItem(icon: Icons.groups_2_rounded, label: 'Demografía'),
-          const BottomNavItem(icon: Icons.layers_rounded, label: 'AGEB'),
-          const BottomNavItem(icon: Icons.home_work_rounded, label: 'Predio'),
-          const BottomNavItem(icon: Icons.threed_rotation_rounded, label: '3D'),
+        items: const [
+          BottomNavItem(icon: Icons.explore_rounded, label: 'Éxito XY'),
+          BottomNavItem(icon: Icons.leaderboard_rounded, label: 'Competencia'),
+          BottomNavItem(icon: Icons.groups_rounded, label: 'Demografía'),
+          BottomNavItem(icon: Icons.layers_rounded, label: 'AGEB'),
+          BottomNavItem(icon: Icons.home_work_rounded, label: 'Predio'),
+          BottomNavItem(icon: Icons.threed_rotation_rounded, label: '3D'),
         ],
       ),
     );

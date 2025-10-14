@@ -4,17 +4,18 @@ import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 
 import 'app/app.dart';
 import 'core/app_state.dart';
+import 'core/config.dart';
 import 'services/cache_service.dart';
 import 'features/explore/explore_controller.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // 🔧 Cargar variables de entorno
+  await Config.load();
+
   // 🗺️ Configurar Mapbox globalmente
-  // Puedes sobreescribir con: --dart-define=MAPBOX_ACCESS_TOKEN=pk...
-  const envToken = String.fromEnvironment('MAPBOX_ACCESS_TOKEN', defaultValue:
-      'pk.eyJ1Ijoia2V2aW5yb2JlcnRvIiwiYSI6ImNtZ2hhcHAyZzB0bjQya29pcmtoa2xuMm0ifQ.FPM4l0bfhiwenMZ6jVr2kA');
-  MapboxOptions.setAccessToken(envToken);
+  MapboxOptions.setAccessToken(Config.mapboxAccessToken);
 
   runApp(
     MultiProvider(

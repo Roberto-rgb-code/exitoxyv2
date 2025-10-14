@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import '../core/config.dart';
 
 class DenueApi {
   static Future<List<Map<String, dynamic>>> buscar(
@@ -9,7 +10,7 @@ class DenueApi {
     int radio = 1500,
   }) async {
     final url = Uri.parse(
-      'https://www.inegi.org.mx/app/api/denue/v1/consulta/Buscar/$actividad/$lat,$lon/$radio/d28a2536-ca8d-47da-bfac-6a57d5c396e0',
+      'https://www.inegi.org.mx/app/api/denue/v1/consulta/Buscar/$actividad/$lat,$lon/$radio/${Config.denueApiKey}',
     );
     final r = await http.get(url);
     if (r.statusCode != 200) {
@@ -30,7 +31,7 @@ class DenueApi {
 
   static Future<bool> validaActividad(String actividad) async {
     final url = Uri.parse(
-      'https://www.inegi.org.mx/app/api/denue/v1/consulta/BuscarEntidad/$actividad/14/1/1/319c3103-92db-49e2-9512-0ee285fe3ba9',
+      'https://www.inegi.org.mx/app/api/denue/v1/consulta/BuscarEntidad/$actividad/14/1/1/${Config.denueValidationApiKey}',
     );
     final r = await http.get(url);
     if (r.statusCode == 200) return true;

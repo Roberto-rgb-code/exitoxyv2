@@ -1,31 +1,64 @@
+// lib/services/google_places_service.dart
 import 'dart:convert';
+import 'dart:ui' as ui; // para ui.Offset
+import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:http/http.dart' as http;
+import '../core/config.dart';
 
-const String placesApiKey = String.fromEnvironment('PLACES_API_KEY');
-
-class GooglePlacesService {
-  static Future<List<Map<String, dynamic>>> nearby({
-    required String keyword,
-    required LatLng center,
+class GooglePlaceService {
+  static Future<List<Map<String, dynamic>>> getPlacesNearby(
+    String keyword,
+    double lat,
+    double lon, {
     int radius = 1500,
     String language = 'es-419',
   }) async {
+    final List<Map<String, dynamic>> negocios = [];
+
     final url = Uri.parse(
       'https://maps.googleapis.com/maps/api/place/nearbysearch/json'
       '?keyword=$keyword'
-      '&location=${center.latitude}%2C${center.longitude}'
-      '&radius=$radius&key=$placesApiKey&language=$language',
+      '&location=$lat%2C$lon'
+      '&radius=$radius'
+      '&key=${Config.googlePlacesApiKey}'
+      '&language=$language',
     );
-    final r = await http.get(url);
-    if (r.statusCode != 200) throw Exception('Places error ${r.statusCode}');
-    final data = json.decode(r.body);
-    final List out = data['results'] ?? [];
-    return out.map<Map<String, dynamic>>((e) => {
-      'lat': e['geometry']['location']['lat'],
-      'lon': e['geometry']['location']['lng'],
-      'nombre': e['name'],
-      'direccion': e['vicinity'],
-    }).toList();
+
+    final response = await http.get(url);
+    if (response.statusCode != 200) {
+      throw Exception('Error Places: ${response.statusCode}');
+    }
+
+    final data = json.decode(response.body);
+    if (data['results'] is List) {
+      for (final e in data['results']) {
+        try {
+          negocios.add({
+            'lat': (e["geometry"]["location"]["lat"] as num).toDouble(),
+            'lon': (e["geometry"]["location"]["lng"] as num).toDouble(),
+            'nombre': (e["name"] ?? '').toString(),
+            'direccion': (e["vicinity"] ?? '').toString(),
+          });
+        } catch (_) {}
+      }
+    }
+    return negocios;
+  }
+
+  /// Marcador simple (infoWindow nativo)
+  static Future<Marker> buildSimpleMarker(
+    String id,
+    LatLng pos,
+    String title,
+  ) async {
+    final icon = BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure);
+    return Marker(
+      markerId: MarkerId(id),
+      position: pos,
+      icon: icon,
+      anchor: const ui.Offset(0.5, 1), // usa dart:ui
+      infoWindow: InfoWindow(title: title),
+    );
   }
 }

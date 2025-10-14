@@ -23,7 +23,7 @@ class ExploreMap extends StatelessWidget {
       onLongPress: c.onMapLongPress,
 
       markers: c.allMarkers(),
-      polygons: c.polygons,
+      polygons: c.getPolygonsWithConcentration(),
 
       buildingsEnabled: true,
       compassEnabled: true,

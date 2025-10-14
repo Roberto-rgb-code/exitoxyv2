@@ -7,6 +7,7 @@ class MarketEntry {
   final String activity;
   final String? postalCode;
   final LatLng position;
+  final String? description;
 
   MarketEntry({
     required this.name,
@@ -14,6 +15,7 @@ class MarketEntry {
     required this.activity,
     required this.position,
     this.postalCode,
+    this.description,
   });
 }
 
@@ -33,27 +35,63 @@ class DenueRepository {
     required double lat,
     required double lon,
     String? postalCode,
+    int radius = 1500,
   }) async {
-    final raw = await DenueApi.buscar(activity, '$lat', '$lon');
-    final out = <MarketEntry>[];
-    for (final m in raw) {
-      final name = (m['nombre'] ?? '').toString();
-      if (name.isEmpty) continue;
+    try {
+      final raw = await DenueApi.buscar(activity, '$lat', '$lon', radio: radius);
+      final out = <MarketEntry>[];
+      
+      for (final m in raw) {
+        final name = (m['nombre'] ?? '').toString();
+        if (name.isEmpty) continue;
 
-      final firm = normalizeFirm(name);
+        final firm = normalizeFirm(name);
+        final description = (m['descripcion'] ?? '').toString();
 
-      final latVal = double.tryParse('${m['lat']}');
-      final lonVal = double.tryParse('${m['lon']}');
-      if (latVal == null || lonVal == null) continue;
+        final latVal = double.tryParse('${m['lat']}');
+        final lonVal = double.tryParse('${m['lon']}');
+        if (latVal == null || lonVal == null) continue;
 
-      out.add(MarketEntry(
-        name: name,
-        firm: firm,
-        activity: activity,
-        postalCode: postalCode,
-        position: LatLng(latVal, lonVal),
-      ));
+        out.add(MarketEntry(
+          name: name,
+          firm: firm,
+          activity: activity,
+          postalCode: postalCode,
+          position: LatLng(latVal, lonVal),
+          description: description,
+        ));
+      }
+      return out;
+    } catch (e) {
+      print('Error fetching DENUE data: $e');
+      return [];
     }
-    return out;
+  }
+
+  /// Alias para mantener compatibilidad con el código existente
+  static Future<List<MarketEntry>> fetchEntries({
+    required String activity,
+    required double lat,
+    required double lon,
+    String? postalCode,
+    int radius = 1500,
+  }) async {
+    return fetch(
+      activity: activity,
+      lat: lat,
+      lon: lon,
+      postalCode: postalCode,
+      radius: radius,
+    );
+  }
+
+  /// Valida si una actividad económica es válida en DENUE
+  static Future<bool> isValidActivity(String activity) async {
+    try {
+      return await DenueApi.validaActividad(activity);
+    } catch (e) {
+      print('Error validating activity: $e');
+      return false;
+    }
   }
 }
