@@ -38,32 +38,51 @@ class DenueRepository {
     int radius = 1500,
   }) async {
     try {
+      print('🔍 DenueRepository.fetch llamado para: "$activity" en ($lat, $lon)');
       final raw = await DenueApi.buscar(activity, '$lat', '$lon', radio: radius);
+      print('📊 DenueApi.buscar devolvió: ${raw.length} elementos');
+      
       final out = <MarketEntry>[];
       
-      for (final m in raw) {
+      for (int i = 0; i < raw.length; i++) {
+        final m = raw[i];
+        if (i < 3) { // Debug primeros 3 elementos
+          print('📋 Elemento $i: $m');
+        }
+        
         final name = (m['nombre'] ?? '').toString();
-        if (name.isEmpty) continue;
+        if (name.isEmpty) {
+          if (i < 3) print('⚠️ Elemento $i: nombre vacío, saltando');
+          continue;
+        }
 
         final firm = normalizeFirm(name);
         final description = (m['descripcion'] ?? '').toString();
 
         final latVal = double.tryParse('${m['lat']}');
         final lonVal = double.tryParse('${m['lon']}');
-        if (latVal == null || lonVal == null) continue;
+        if (latVal == null || lonVal == null) {
+          if (i < 3) print('⚠️ Elemento $i: coordenadas inválidas (lat: ${m['lat']}, lon: ${m['lon']})');
+          continue;
+        }
 
-        out.add(MarketEntry(
+        final entry = MarketEntry(
           name: name,
           firm: firm,
           activity: activity,
           postalCode: postalCode,
           position: LatLng(latVal, lonVal),
           description: description,
-        ));
+        );
+        
+        out.add(entry);
+        if (i < 3) print('✅ Elemento $i agregado: $name en ($latVal, $lonVal)');
       }
+      
+      print('✅ DenueRepository.fetch devolvió: ${out.length} MarketEntry válidos');
       return out;
     } catch (e) {
-      print('Error fetching DENUE data: $e');
+      print('❌ Error fetching DENUE data: $e');
       return [];
     }
   }

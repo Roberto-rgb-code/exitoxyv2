@@ -11,8 +11,8 @@ class ExploreMap extends StatelessWidget {
     final c = context.watch<ExploreController>();
 
     return GoogleMap(
-      mapToolbarEnabled: false,
-      zoomControlsEnabled: false,
+      mapToolbarEnabled: true,
+      zoomControlsEnabled: true,
       myLocationButtonEnabled: true,
       myLocationEnabled: c.myLocationEnabled, // 👈 ya existe en el controller
 

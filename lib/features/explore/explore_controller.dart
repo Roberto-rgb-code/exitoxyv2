@@ -8,21 +8,20 @@ import 'package:geocoding/geocoding.dart';
 import '../../shared/polygons_methods.dart';
 import '../../services/ageb_api_service.dart';
 import '../../services/mysql_connector.dart';
-import '../../services/google_places_service.dart';
 import '../../services/denue_repository.dart';
 import '../../services/concentration_service.dart';
 import '../../services/cache_service.dart';
 import '../../services/recommendation_service.dart';
 import '../../services/markers_commercial_service.dart';
 import '../../services/filtering_service.dart';
-import '../../services/demographic_service.dart';
 import '../../models/concentration_result.dart';
 import '../../widgets/custom_info_window.dart';
-import '../../widgets/polygon_info_window.dart';
 import '../../widgets/denue_info_window.dart';
-import '../../widgets/demographic_modal.dart';
 import '../../widgets/polygon_window.dart';
-import '../../widgets/commercial_modal.dart';
+import '../../widgets/delito_info_window.dart';
+import '../../services/delitos_service.dart';
+import '../../models/delito_model.dart';
+import '../../models/recommendation.dart';
 
 /// Cache local por CP
 class ExploreLocalCache {
@@ -58,7 +57,13 @@ class ExploreController extends ChangeNotifier {
   LatLng? lastPoint;
   final Set<Polygon> polygons = <Polygon>{};
   final Map<MarkerId, Marker> _markers = {};
-  Set<Marker> allMarkers() => _markers.values.toSet();
+  Set<Marker> allMarkers() {
+    final markers = _markers.values.toSet();
+    print('🗺️ allMarkers() llamado: ${markers.length} marcadores');
+    print('🗺️ Marcadores DENUE: ${_markers.keys.where((key) => key.value.startsWith('denue_')).length}');
+    print('🗺️ Marcadores Delitos: ${_markers.keys.where((key) => key.value.startsWith('delito_')).length}');
+    return markers;
+  }
 
   bool myLocationEnabled = false;
 
@@ -309,19 +314,19 @@ class ExploreController extends ChangeNotifier {
 
   Future<void> _fetchNearbyPlacesAt(LatLng p, {required String keyword}) async {
     try {
-      final list =
-          await GooglePlaceService.getPlacesNearby(keyword, p.latitude, p.longitude);
-      int i = 0;
-      for (final place in list.take(10)) {
-        final id = MarkerId('place_$i');
-        final marker = await GooglePlaceService.buildSimpleMarker(
-          id.value,
-          LatLng(place['lat'], place['lon']),
-          place['nombre'],
-        );
-        _markers[id] = marker;
-        i++;
-      }
+      // Temporalmente comentado hasta integrar Google Places
+      // final list = await GooglePlacesService.getPlacesNearby(keyword, p.latitude, p.longitude);
+      // int i = 0;
+      // for (final place in list.take(10)) {
+      //   final id = MarkerId('place_$i');
+      //   final marker = await GooglePlaceService.buildSimpleMarker(
+      //     id.value,
+      //     LatLng(place['lat'], place['lon']),
+      //     place['nombre'],
+      //   );
+      //   _markers[id] = marker;
+      //   i++;
+      // }
       notifyListeners();
     } catch (_) {}
   }
@@ -489,21 +494,28 @@ class ExploreController extends ChangeNotifier {
   /// Analiza la concentración del mercado para una actividad específica
   Future<void> analyzeConcentration(String activity) async {
     if (lastPoint == null || activeCP == null) {
-      throw Exception('Selecciona una zona primero');
+      throw Exception('Selecciona una zona primero (tap en el mapa o busca una dirección)');
     }
 
     currentActivity = activity;
+    print('🔍 Analizando concentración para: $activity en CP: $activeCP');
     
     // Verificar cache
     final cached = CacheService.get(activity, activeCP!);
     if (cached != null) {
+      print('✅ Usando datos en cache');
       currentConcentration = cached;
       showConcentrationLayer = true;
+      
+      // Generar recomendaciones aunque sea del cache
+      await _generateRecommendations();
+      
       notifyListeners();
       return;
     }
 
     try {
+      print('📡 Obteniendo datos DENUE...');
       // Obtener datos DENUE
       final entries = await DenueRepository.fetchEntries(
         activity: activity,
@@ -512,12 +524,20 @@ class ExploreController extends ChangeNotifier {
         postalCode: activeCP,
       );
 
+      print('📊 Encontrados ${entries.length} negocios');
+
+      if (entries.isEmpty) {
+        throw Exception('No se encontraron negocios de "$activity" en esta área');
+      }
+
       // Calcular concentración
       final result = ConcentrationService.compute(
         entries: entries,
         activity: activity,
         postalCode: activeCP!,
       );
+
+      print('📈 HHI: ${result.hhi}, CR4: ${result.cr4}');
 
       // Guardar en cache
       CacheService.put(activity, activeCP!, result);
@@ -527,62 +547,212 @@ class ExploreController extends ChangeNotifier {
       showConcentrationLayer = true;
       
       // Generar recomendaciones
-      if (demographyAgg != null) {
-        recommendations = RecommendationService.generateRecommendations(
-          concentration: result,
-          demography: demographyAgg!,
-          activity: activity,
-          postalCode: activeCP!,
-        );
-      }
+      await _generateRecommendations();
 
+      print('✅ Análisis de concentración completado');
       notifyListeners();
     } catch (e) {
+      print('❌ Error analizando concentración: $e');
       throw Exception('Error analizando concentración: $e');
+    }
+  }
+
+  /// Genera recomendaciones basadas en el análisis actual
+  Future<void> _generateRecommendations() async {
+    try {
+      print('💡 Generando recomendaciones...');
+      
+      if (lastPoint == null) {
+        print('⚠️ No hay ubicación para generar recomendaciones');
+        return;
+      }
+
+      final recommendationService = RecommendationService();
+      recommendations = await recommendationService.generateRecommendations(
+        latitude: lastPoint!.latitude,
+        longitude: lastPoint!.longitude,
+        locationName: activeCP != null 
+            ? 'CP $activeCP, Guadalajara' 
+            : 'Ubicación seleccionada',
+      );
+
+      print('✅ Generadas ${recommendations.length} recomendaciones');
+    } catch (e) {
+      print('⚠️ Error generando recomendaciones: $e');
+      // No lanzar excepción, las recomendaciones son opcionales
+      recommendations = [];
     }
   }
 
   /// Muestra marcadores DENUE con colores según concentración
   Future<void> showDenueMarkers(String activity) async {
-    if (lastPoint == null) return;
+    print('🔍 showDenueMarkers llamado con actividad: "$activity"');
+    print('📍 lastPoint: $lastPoint');
+    
+    if (lastPoint == null) {
+      print('⚠️ No hay ubicación para mostrar marcadores DENUE');
+      return;
+    }
+    
+    print('🎯 INICIANDO CREACIÓN DE MARCADORES DENUE...');
 
     try {
+      print('🔍 Cargando marcadores DENUE para: "$activity"');
+      
       final entries = await DenueRepository.fetchEntries(
         activity: activity,
         lat: lastPoint!.latitude,
         lon: lastPoint!.longitude,
         postalCode: activeCP,
+        radius: 2000, // 2km de radio
       );
+
+      print('📊 DENUE: ${entries.length} negocios encontrados');
+
+      if (entries.isEmpty) {
+        print('⚠️ No se encontraron negocios de "$activity" en esta área');
+        return;
+      }
 
       // Limpiar marcadores DENUE existentes
       _markers.removeWhere((key, marker) => key.value.startsWith('denue_'));
 
-      // Crear marcadores con colores según concentración
+      // Determinar color basado en concentración
+      double markerHue = BitmapDescriptor.hueBlue; // Default azul
+      if (currentConcentration != null) {
+        // Colores según nivel de concentración
+        if (currentConcentration!.hhi < 1500) {
+          markerHue = BitmapDescriptor.hueGreen; // Verde - Baja concentración
+        } else if (currentConcentration!.hhi < 2500) {
+          markerHue = BitmapDescriptor.hueYellow; // Amarillo - Moderada
+        } else if (currentConcentration!.hhi < 3500) {
+          markerHue = BitmapDescriptor.hueOrange; // Naranja - Alta
+        } else {
+          markerHue = BitmapDescriptor.hueRed; // Rojo - Muy alta
+        }
+        print('🎨 Color de marcadores: HHI=${currentConcentration!.hhi} -> Hue=$markerHue');
+      }
+
+      // Crear marcadores
+      print('🎨 Creando ${entries.length} marcadores DENUE...');
       for (int i = 0; i < entries.length; i++) {
         final entry = entries[i];
         final markerId = MarkerId('denue_$i');
         
-        // Determinar color basado en concentración
-        Color markerColor = Colors.blue; // Default
-        if (currentConcentration != null) {
-          markerColor = Color(currentConcentration!.color);
+        if (i < 3) { // Debug primeros 3 marcadores
+          print('📍 Marcador $i: ${entry.name} en ${entry.position}');
         }
-
+        
         final marker = Marker(
           markerId: markerId,
           position: entry.position,
-          icon: BitmapDescriptor.defaultMarkerWithHue(
-            _colorToHue(markerColor),
+          icon: BitmapDescriptor.defaultMarkerWithHue(markerHue),
+          infoWindow: InfoWindow(
+            title: entry.name,
+            snippet: 'Tap para más información',
           ),
           onTap: () => _showDenueInfoWindow(entry),
         );
 
         _markers[markerId] = marker;
       }
+      
+      print('🎯 MARCADORES DENUE AGREGADOS AL MAPA: ${_markers.length}');
 
+      print('✅ DENUE: ${entries.length} marcadores agregados al mapa');
+      print('📊 Total de marcadores en el mapa: ${_markers.length}');
+      print('📊 Marcadores DENUE: ${_markers.keys.where((key) => key.value.startsWith('denue_')).length}');
+      
+      // Debugging: mostrar algunos marcadores
+      if (entries.isNotEmpty) {
+        print('📍 Primer marcador: ${entries[0].name} en ${entries[0].position}');
+        if (entries.length > 1) {
+          print('📍 Segundo marcador: ${entries[1].name} en ${entries[1].position}');
+        }
+      }
+      
       notifyListeners();
     } catch (e) {
-      print('Error mostrando marcadores DENUE: $e');
+      print('❌ Error mostrando marcadores DENUE: $e');
+      rethrow;
+    }
+  }
+
+  /// Muestra marcadores de delitos en el mapa
+  Future<void> showDelitosMarkers() async {
+    if (lastPoint == null) {
+      print('⚠️ No hay ubicación para mostrar marcadores de delitos');
+      return;
+    }
+
+    try {
+      print('🔍 Cargando marcadores de delitos...');
+      
+      // Obtener el servicio de delitos
+      final delitosService = DelitosService();
+      
+      // Cargar delitos si no están cargados
+      if (!delitosService.isLoaded) {
+        print('📥 Cargando base de datos de delitos desde CSV...');
+        await delitosService.loadDelitosFromCsv();
+      }
+      
+      // Obtener delitos en un radio de 2km
+      final delitos = delitosService.getDelitosByLocation(
+        latitude: lastPoint!.latitude,
+        longitude: lastPoint!.longitude,
+        radiusMeters: 2000, // 2km de radio
+      );
+
+      print('📊 DELITOS: ${delitos.length} delitos encontrados en 2km');
+
+      if (delitos.isEmpty) {
+        print('✅ No hay delitos registrados en esta área (¡buena señal!)');
+        // No retornar, solo notificar que no hay delitos
+      }
+
+      // Limpiar marcadores de delitos existentes
+      _markers.removeWhere((key, marker) => key.value.startsWith('delito_'));
+
+      // Limitar a máximo 50 marcadores para no saturar el mapa
+      final delitosToShow = delitos.take(50).toList();
+      
+      if (delitosToShow.length < delitos.length) {
+        print('⚠️ Mostrando solo ${delitosToShow.length} de ${delitos.length} delitos para optimizar rendimiento');
+      }
+
+      // Crear marcadores de delitos con icono distintivo (rojo violeta)
+      print('🔴 Creando ${delitosToShow.length} marcadores de delitos...');
+      for (int i = 0; i < delitosToShow.length; i++) {
+        final delito = delitosToShow[i];
+        final markerId = MarkerId('delito_$i');
+
+        if (i < 3) { // Debug primeros 3 marcadores
+          print('🔴 Marcador delito $i: ${delito.delito} en (${delito.y}, ${delito.x})');
+        }
+
+        final marker = Marker(
+          markerId: markerId,
+          position: LatLng(delito.y, delito.x), // y=latitud, x=longitud
+          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueViolet),
+          alpha: 0.8, // Transparencia para distinguir de otros marcadores
+          infoWindow: InfoWindow(
+            title: '⚠️ ${delito.delito}',
+            snippet: 'Tap para detalles',
+          ),
+          onTap: () => _showDelitoInfoWindow(delito),
+        );
+
+        _markers[markerId] = marker;
+      }
+      
+      print('🎯 MARCADORES DE DELITOS AGREGADOS AL MAPA: ${_markers.length}');
+
+      print('✅ DELITOS: ${delitosToShow.length} marcadores agregados al mapa');
+      notifyListeners();
+    } catch (e) {
+      print('❌ Error mostrando marcadores de delitos: $e');
+      // No lanzar excepción, los delitos son informativos pero no críticos
     }
   }
 
@@ -607,6 +777,21 @@ class ExploreController extends ChangeNotifier {
         concentrationResult: currentConcentration,
       ),
       entry.position,
+    );
+  }
+
+  /// Muestra información de un delito
+  void _showDelitoInfoWindow(DelitoModel delito) {
+    customInfoWindowController?.addInfoWindow?.call(
+      DelitoInfoWindow(
+        delito: delito.delito,
+        fecha: delito.fecha,
+        hora: delito.hora,
+        colonia: delito.colonia,
+        municipio: delito.municipio,
+        bienAfectado: delito.bienAfectado,
+      ),
+      LatLng(delito.y, delito.x),
     );
   }
 

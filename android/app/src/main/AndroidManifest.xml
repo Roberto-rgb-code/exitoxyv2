@@ -1,6 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application
-        android:label="kitit_v2"
+        android:label="exitoxy"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
@@ -30,6 +30,11 @@
         <meta-data
             android:name="com.google.android.geo.API_KEY"
             android:value="AIzaSyAtWc3gF7u8i7tiLCxuN5KoGxEf-a8FRKY" />
+        
+        <!-- Mapbox configuration -->
+        <meta-data
+            android:name="com.mapbox.token"
+            android:value="pk.eyJ1Ijoia2V2aW5yb2JlcnRvIiwiYSI6ImNtZ2hhcHAyZzB0bjQya29pcmtoa2xuMm0ifQ.FPM4l0bfhiwenMZ6jVr2kA" />
        
         <meta-data
             android:name="flutterEmbedding"

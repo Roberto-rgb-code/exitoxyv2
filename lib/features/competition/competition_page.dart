@@ -7,6 +7,7 @@ import '../../services/concentration_service.dart';
 import '../../services/cache_service.dart';
 import '../../services/recommendation_service.dart';
 import '../../models/concentration_result.dart';
+import '../../models/recommendation.dart';
 import '../explore/widgets/concentration_panel.dart';
 import '../../widgets/recommendation_panel.dart';
 
@@ -78,11 +79,11 @@ class _CompetitionPageState extends State<CompetitionPage> {
 
       // 6) Generar recomendaciones (simulamos demografía básica)
       final demography = {'t': 5000, 'm': 2500, 'f': 2500}; // Datos simulados
-      _recommendations = RecommendationService.generateRecommendations(
-        concentration: cached,
-        demography: demography,
-        activity: act,
-        postalCode: cp,
+      final recommendationService = RecommendationService();
+      _recommendations = await recommendationService.generateRecommendations(
+        latitude: 20.6597, // Coordenadas de Guadalajara
+        longitude: -103.3496,
+        locationName: 'Guadalajara, Jalisco',
       );
 
       setState(() => _result = cached);

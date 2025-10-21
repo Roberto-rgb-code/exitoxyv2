@@ -50,13 +50,21 @@ class Config {
   // ===========================================
   // GOOGLE SHEETS
   // ===========================================
-  static String get googleSheetsCredentials => 
-      dotenv.env['GOOGLE_SHEETS_CREDENTIALS'] ?? 
+  static String get googleSheetsCredentials {
+    final credentials = dotenv.env['GOOGLE_SHEETS_CREDENTIALS'];
+    if (credentials == null || credentials.isEmpty) {
       throw Exception('GOOGLE_SHEETS_CREDENTIALS no está configurado en .env');
+    }
+    return credentials;
+  }
 
-  static String get googleSheetsSpreadsheetId => 
-      dotenv.env['GOOGLE_SHEETS_SPREADSHEET_ID'] ?? 
+  static String get googleSheetsSpreadsheetId {
+    final spreadsheetId = dotenv.env['GOOGLE_SHEETS_SPREADSHEET_ID'];
+    if (spreadsheetId == null || spreadsheetId.isEmpty) {
       throw Exception('GOOGLE_SHEETS_SPREADSHEET_ID no está configurado en .env');
+    }
+    return spreadsheetId;
+  }
 
   // ===========================================
   // DENUE API

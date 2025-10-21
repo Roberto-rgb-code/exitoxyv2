@@ -27,42 +27,102 @@ class _ActivityPromptState extends State<ActivityPrompt> {
     setState(() => _isValidating = true);
     
     try {
-      // Aquí podrías validar la actividad con DENUE
-      // Por ahora, asumimos que es válida si no está vacía
-      setState(() => _isValidActivity = true);
-    } catch (e) {
-      setState(() => _isValidActivity = false);
-    } finally {
-      setState(() => _isValidating = false);
-    }
-  }
-
-  Future<void> _analyzeConcentration() async {
-    final activity = _activityController.text.trim();
-    if (activity.isEmpty || !_isValidActivity) return;
-
-    final controller = context.read<ExploreController>();
-    
-    try {
-      await controller.analyzeConcentration(activity);
-      await controller.showDenueMarkers(activity);
+      // Validar la actividad económica
+      // Por ahora, asumimos que cualquier texto no vacío es válido
+      // Podrías agregar validación con DENUE API aquí
+      await Future.delayed(const Duration(milliseconds: 500));
       
       if (mounted) {
+        setState(() => _isValidActivity = true);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Análisis de concentración completado'),
+          SnackBar(
+            content: Text('✓ Actividad válida: $activity'),
             backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
           ),
         );
       }
     } catch (e) {
       if (mounted) {
+        setState(() => _isValidActivity = false);
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isValidating = false);
+      }
+    }
+  }
+
+  Future<void> _analyzeConcentration() async {
+    final activity = _activityController.text.trim();
+    if (activity.isEmpty) return;
+
+    final controller = context.read<ExploreController>();
+    
+    if (controller.lastPoint == null) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: $e'),
-            backgroundColor: Colors.red,
+          const SnackBar(
+            content: Text('Por favor selecciona una ubicación primero'),
+            backgroundColor: Colors.orange,
           ),
         );
+      }
+      return;
+    }
+    
+    try {
+      setState(() => _isValidating = true);
+      
+      // 1. Analizar la concentración (esto también genera recomendaciones)
+      await controller.analyzeConcentration(activity);
+      
+      // 2. Mostrar los marcadores DENUE en el mapa
+      await controller.showDenueMarkers(activity);
+      
+      // 3. Cargar y mostrar marcadores de delitos
+      await controller.showDelitosMarkers();
+      
+      setState(() => _isValidActivity = true);
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('✅ Análisis completado: $activity'),
+                const SizedBox(height: 4),
+                Text(
+                  '📍 Marcadores mostrados en el mapa',
+                  style: TextStyle(fontSize: 12),
+                ),
+                Text(
+                  '🎯 Ver recomendaciones abajo',
+                  style: TextStyle(fontSize: 12),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } catch (e) {
+      setState(() => _isValidActivity = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Error analizando "$activity": ${e.toString()}'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isValidating = false);
       }
     }
   }

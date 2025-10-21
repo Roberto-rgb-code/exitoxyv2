@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:kitit_v2/services/recommendation_service.dart';
+import '../models/recommendation.dart';
 
 class RecommendationPanel extends StatelessWidget {
   final List<Recommendation> recommendations;

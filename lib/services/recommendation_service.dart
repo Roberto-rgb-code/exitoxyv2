@@ -1,304 +1,360 @@
-import 'package:kitit_v2/models/concentration_result.dart';
-
-class Recommendation {
-  final String title;
-  final String description;
-  final String type; // 'success', 'warning', 'info', 'error'
-  final List<String> details;
-  final double score; // 0-100
-
-  const Recommendation({
-    required this.title,
-    required this.description,
-    required this.type,
-    required this.details,
-    required this.score,
-  });
-}
+import '../models/delito_model.dart';
+import '../models/search_record_model.dart';
+import '../models/recommendation.dart';
+import '../services/delitos_service.dart';
+import '../services/google_places_service.dart';
+import '../services/search_history_service.dart';
 
 class RecommendationService {
-  /// Genera recomendaciones basadas en el análisis de concentración y demografía
-  static List<Recommendation> generateRecommendations({
-    required ConcentrationResult concentration,
-    required Map<String, int> demography,
-    required String activity,
-    required String postalCode,
-  }) {
-    final recommendations = <Recommendation>[];
+  final DelitosService _delitosService = DelitosService();
+  final GooglePlacesService _placesService = GooglePlacesService();
+  final SearchHistoryService _searchService = SearchHistoryService();
 
-    // Análisis de concentración
-    recommendations.addAll(_analyzeConcentration(concentration, activity));
-    
-    // Análisis demográfico
-    recommendations.addAll(_analyzeDemography(demography, activity));
-    
-    // Análisis de oportunidad de mercado
-    recommendations.addAll(_analyzeMarketOpportunity(concentration, demography, activity));
+  /// Generar recomendaciones de ubicaciones para renta
+  Future<List<Recommendation>> generateRecommendations({
+    required double latitude,
+    required double longitude,
+    required String locationName,
+    Map<String, dynamic>? userPreferences,
+  }) async {
+    try {
+      // Obtener datos de delitos en el área
+      final delitos = _delitosService.getDelitosByLocation(
+        latitude: latitude,
+        longitude: longitude,
+        radiusMeters: 2000, // 2km de radio
+      );
 
-    // Ordenar por score (mayor a menor)
-    recommendations.sort((a, b) => b.score.compareTo(a.score));
-    
-    return recommendations;
-  }
+      // Obtener servicios cercanos
+      final services = await _placesService.getEssentialServices(
+        latitude: latitude,
+        longitude: longitude,
+        radius: 1000,
+      );
 
-  static List<Recommendation> _analyzeConcentration(ConcentrationResult concentration, String activity) {
-    final recommendations = <Recommendation>[];
+      // Calcular score de seguridad
+      final safetyScore = _calculateSafetyScore(delitos);
 
-    switch (concentration.level) {
-      case 'low':
-        recommendations.add(Recommendation(
-          title: 'Excelente Oportunidad de Mercado',
-          description: 'La baja concentración indica un mercado fragmentado con oportunidades para nuevos competidores.',
-          type: 'success',
-          score: 85.0,
-          details: [
-            'HHI de ${concentration.hhi.toStringAsFixed(0)} indica competencia saludable',
-            'CR4 de ${concentration.cr4.toStringAsFixed(1)}% muestra que ninguna empresa domina',
-            'Oportunidad para diferenciación y captura de mercado',
-          ],
-        ));
-        break;
+      // Calcular score de servicios
+      final servicesScore = _calculateServicesScore(services);
 
-      case 'moderate':
-        recommendations.add(Recommendation(
-          title: 'Mercado Moderadamente Competitivo',
-          description: 'La concentración moderada sugiere un mercado estable con algunas oportunidades.',
-          type: 'info',
-          score: 65.0,
-          details: [
-            'HHI de ${concentration.hhi.toStringAsFixed(0)} indica competencia moderada',
-            'CR4 de ${concentration.cr4.toStringAsFixed(1)}% muestra cierta concentración',
-            'Estrategia de nicho podría ser efectiva',
-          ],
-        ));
-        break;
+      // Calcular score de transporte
+      final transportScore = _calculateTransportScore(services['transit_station'] ?? []);
 
-      case 'high':
-        recommendations.add(Recommendation(
-          title: 'Mercado Altamente Concentrado',
-          description: 'La alta concentración indica un mercado dominado por pocas empresas.',
-          type: 'warning',
-          score: 35.0,
-          details: [
-            'HHI de ${concentration.hhi.toStringAsFixed(0)} indica alta concentración',
-            'CR4 de ${concentration.cr4.toStringAsFixed(1)}% muestra dominio de pocas empresas',
-            'Se requiere estrategia diferenciada y capital significativo',
-          ],
-        ));
-        break;
+      // Calcular score general
+      final overallScore = _calculateOverallScore(
+        safetyScore: safetyScore,
+        servicesScore: servicesScore,
+        transportScore: transportScore,
+      );
 
-      case 'veryHigh':
-        recommendations.add(Recommendation(
-          title: 'Mercado Oligopólico',
-          description: 'La muy alta concentración indica un mercado dominado por oligopolio.',
-          type: 'error',
-          score: 15.0,
-          details: [
-            'HHI de ${concentration.hhi.toStringAsFixed(0)} indica oligopolio',
-            'CR4 de ${concentration.cr4.toStringAsFixed(1)}% muestra dominio total',
-            'Muy difícil entrar al mercado sin ventaja competitiva significativa',
-          ],
-        ));
-        break;
-    }
-
-    return recommendations;
-  }
-
-  static List<Recommendation> _analyzeDemography(Map<String, int> demography, String activity) {
-    final recommendations = <Recommendation>[];
-    final total = demography['t'] ?? 0;
-    final hombres = demography['m'] ?? 0;
-    final mujeres = demography['f'] ?? 0;
-
-    if (total == 0) return recommendations;
-
-    // Análisis de tamaño de población
-    if (total > 10000) {
-      recommendations.add(Recommendation(
-        title: 'Alta Densidad Poblacional',
-        description: 'La zona tiene una población significativa que puede soportar múltiples negocios.',
-        type: 'success',
-        score: 75.0,
+      // Crear recomendación como Map
+      final recommendation = Recommendation(
+        locationName: locationName,
+        latitude: latitude,
+        longitude: longitude,
+        score: overallScore,
+        factors: {
+          'safety': safetyScore,
+          'services': servicesScore,
+          'transport': transportScore,
+        },
+        description: _generateRecommendationsText(
+          safetyScore: safetyScore,
+          servicesScore: servicesScore,
+          transportScore: transportScore,
+          crimeCount: delitos.length,
+        ).join('\n'),
+        type: 'location',
+        title: locationName,
         details: [
-          'Población total: $total habitantes',
-          'Mercado potencial amplio',
-          'Oportunidad para especialización',
+          'Seguridad: ${safetyScore.toStringAsFixed(1)}/100',
+          'Servicios: ${servicesScore.toStringAsFixed(1)}/100',
+          'Transporte: ${transportScore.toStringAsFixed(1)}/100',
+          'Delitos en el área: ${delitos.length}',
         ],
-      ));
-    } else if (total > 5000) {
-      recommendations.add(Recommendation(
-        title: 'Población Moderada',
-        description: 'La zona tiene una población moderada adecuada para ciertos tipos de negocios.',
-        type: 'info',
-        score: 55.0,
-        details: [
-          'Población total: $total habitantes',
-          'Mercado de tamaño medio',
-          'Considerar nichos específicos',
-        ],
-      ));
-    } else {
-      recommendations.add(Recommendation(
-        title: 'Población Baja',
-        description: 'La zona tiene una población limitada que puede restringir el potencial de mercado.',
-        type: 'warning',
-        score: 30.0,
-        details: [
-          'Población total: $total habitantes',
-          'Mercado limitado',
-          'Requiere análisis cuidadoso de demanda',
-        ],
-      ));
-    }
+      );
 
-    // Análisis de distribución por género
-    final ratioHombres = (hombres / total) * 100;
-    final ratioMujeres = (mujeres / total) * 100;
-
-    if (_isGenderRelevantActivity(activity)) {
-      if (ratioMujeres > 60) {
-        recommendations.add(Recommendation(
-          title: 'Población Mayoritariamente Femenina',
-          description: 'La zona tiene una proporción alta de mujeres, relevante para ciertos negocios.',
-          type: 'info',
-          score: 60.0,
-          details: [
-            '${ratioMujeres.toStringAsFixed(1)}% mujeres vs ${ratioHombres.toStringAsFixed(1)}% hombres',
-            'Considerar productos/servicios orientados a mujeres',
-          ],
-        ));
-      } else if (ratioHombres > 60) {
-        recommendations.add(Recommendation(
-          title: 'Población Mayoritariamente Masculina',
-          description: 'La zona tiene una proporción alta de hombres, relevante para ciertos negocios.',
-          type: 'info',
-          score: 60.0,
-          details: [
-            '${ratioHombres.toStringAsFixed(1)}% hombres vs ${ratioMujeres.toStringAsFixed(1)}% mujeres',
-            'Considerar productos/servicios orientados a hombres',
-          ],
-        ));
+      // Intentar guardar búsqueda en historial (opcional, no crítico)
+      try {
+        await _searchService.saveSearch(
+          latitude: latitude,
+          longitude: longitude,
+          locationName: locationName,
+          searchFilters: userPreferences,
+          crimeData: {
+            'count': delitos.length,
+            'types': _getCrimeTypes(delitos),
+            'safetyScore': safetyScore,
+          },
+          placesData: _getNearbyServices(services),
+        );
+      } catch (e) {
+        print('⚠️ No se pudo guardar en historial (opcional): $e');
+        // Continuar sin fallar
       }
-    }
 
-    return recommendations;
+      return [recommendation];
+    } catch (e) {
+      print('Error generando recomendaciones: $e');
+      return [];
+    }
   }
 
-  static List<Recommendation> _analyzeMarketOpportunity(
-    ConcentrationResult concentration,
-    Map<String, int> demography,
-    String activity,
-  ) {
-    final recommendations = <Recommendation>[];
-    final total = demography['t'] ?? 0;
+  /// Calcular score de seguridad (0-100)
+  double _calculateSafetyScore(List<DelitoModel> delitos) {
+    if (delitos.isEmpty) return 100.0;
 
-    // Score combinado
-    double marketScore = 0;
+    // Penalizar por cantidad de delitos
+    double score = 100.0;
     
-    // Factor de concentración (inverso - menor concentración = mayor oportunidad)
-    switch (concentration.level) {
-      case 'low':
-        marketScore += 40;
-        break;
-      case 'moderate':
-        marketScore += 25;
-        break;
-      case 'high':
-        marketScore += 10;
-        break;
-      case 'veryHigh':
-        marketScore += 0;
-        break;
-    }
+    // Reducir score por cada delito
+    score -= (delitos.length * 2).clamp(0.0, 50.0);
+    
+    // Penalizar más por delitos violentos
+    final violentCrimes = delitos.where((d) => 
+      d.delito.toLowerCase().contains('homicidio') ||
+      d.delito.toLowerCase().contains('violencia')
+    ).length;
+    
+    score -= (violentCrimes * 10).clamp(0.0, 30.0);
+    
+    // Penalizar por delitos recientes (últimos 6 meses)
+    final recentCrimes = delitos.where((d) {
+      try {
+        final crimeDate = DateTime.parse(d.fecha);
+        final sixMonthsAgo = DateTime.now().subtract(const Duration(days: 180));
+        return crimeDate.isAfter(sixMonthsAgo);
+      } catch (e) {
+        return false;
+      }
+    }).length;
+    
+    score -= (recentCrimes * 5).clamp(0.0, 20.0);
+    
+    return score.clamp(0.0, 100.0);
+  }
 
-    // Factor de población
-    if (total > 10000) {
-      marketScore += 30;
-    } else if (total > 5000) {
-      marketScore += 20;
-    } else if (total > 2000) {
-      marketScore += 10;
-    }
+  /// Calcular score de servicios (0-100)
+  double _calculateServicesScore(Map<String, List<PlaceResult>> services) {
+    double score = 0.0;
+    
+    // Hospitales (peso: 25%)
+    final hospitals = services['hospital'] ?? [];
+    score += (hospitals.length * 5).clamp(0.0, 25.0);
+    
+    // Escuelas (peso: 20%)
+    final schools = services['school'] ?? [];
+    score += (schools.length * 4).clamp(0.0, 20.0);
+    
+    // Farmacias (peso: 15%)
+    final pharmacies = services['pharmacy'] ?? [];
+    score += (pharmacies.length * 3).clamp(0.0, 15.0);
+    
+    // Gasolineras (peso: 10%)
+    final gasStations = services['gas_station'] ?? [];
+    score += (gasStations.length * 2).clamp(0.0, 10.0);
+    
+    // Policía (peso: 15%)
+    final police = services['police'] ?? [];
+    score += (police.length * 3).clamp(0.0, 15.0);
+    
+    // Bomberos (peso: 15%)
+    final fireStations = services['fire_station'] ?? [];
+    score += (fireStations.length * 3).clamp(0.0, 15.0);
+    
+    return score.clamp(0.0, 100.0);
+  }
 
-    // Factor de actividad específica
-    marketScore += _getActivityScore(activity);
+  /// Calcular score de transporte (0-100)
+  double _calculateTransportScore(List<PlaceResult> transitStations) {
+    if (transitStations.isEmpty) return 0.0;
+    
+    // Score basado en cantidad de estaciones de transporte
+    double score = (transitStations.length * 20).toDouble().clamp(0.0, 100.0);
+    
+    // Bonus por estaciones con buena calificación
+    final avgRating = transitStations
+        .map((s) => s.rating)
+        .reduce((a, b) => a + b) / transitStations.length;
+    
+    if (avgRating > 4.0) score += 20.0;
+    else if (avgRating > 3.5) score += 10.0;
+    
+    return score.clamp(0.0, 100.0);
+  }
 
-    if (marketScore > 70) {
-      recommendations.add(Recommendation(
-        title: 'Excelente Oportunidad de Negocio',
-        description: 'La combinación de factores indica una excelente oportunidad para este tipo de negocio.',
-        type: 'success',
-        score: marketScore,
-        details: [
-          'Score de oportunidad: ${marketScore.toStringAsFixed(0)}/100',
-          'Baja competencia y buena población objetivo',
-          'Recomendado proceder con el análisis detallado',
-        ],
-      ));
-    } else if (marketScore > 50) {
-      recommendations.add(Recommendation(
-        title: 'Oportunidad Moderada',
-        description: 'La zona presenta una oportunidad moderada que requiere análisis adicional.',
-        type: 'info',
-        score: marketScore,
-        details: [
-          'Score de oportunidad: ${marketScore.toStringAsFixed(0)}/100',
-          'Considerar factores adicionales como ubicación y accesibilidad',
-          'Análisis de competencia directa recomendado',
-        ],
-      ));
+  /// Calcular score general
+  double _calculateOverallScore({
+    required double safetyScore,
+    required double servicesScore,
+    required double transportScore,
+  }) {
+    // Pesos: Seguridad 50%, Servicios 30%, Transporte 20%
+    return (safetyScore * 0.5 + servicesScore * 0.3 + transportScore * 0.2);
+  }
+
+  /// Obtener tipos de delitos únicos
+  List<String> _getCrimeTypes(List<DelitoModel> delitos) {
+    return delitos.map((d) => d.delito).toSet().toList();
+  }
+
+  /// Obtener servicios cercanos
+  Map<String, int> _getNearbyServices(Map<String, List<PlaceResult>> services) {
+    final Map<String, int> nearbyServices = {};
+    
+    services.forEach((key, value) {
+      nearbyServices[key] = value.length;
+    });
+    
+    return nearbyServices;
+  }
+
+  /// Generar texto de recomendaciones
+  List<String> _generateRecommendationsText({
+    required double safetyScore,
+    required double servicesScore,
+    required double transportScore,
+    required int crimeCount,
+  }) {
+    final List<String> recommendations = [];
+    
+    // Recomendaciones de seguridad
+    if (safetyScore < 50) {
+      recommendations.add('⚠️ Alta incidencia delictiva. Considera otras ubicaciones.');
+    } else if (safetyScore < 70) {
+      recommendations.add('⚠️ Moderada incidencia delictiva. Toma precauciones adicionales.');
     } else {
-      recommendations.add(Recommendation(
-        title: 'Oportunidad Limitada',
-        description: 'La zona presenta desafíos significativos para este tipo de negocio.',
-        type: 'warning',
-        score: marketScore,
-        details: [
-          'Score de oportunidad: ${marketScore.toStringAsFixed(0)}/100',
-          'Alta competencia o población insuficiente',
-          'Considerar otras ubicaciones o modelos de negocio',
-        ],
-      ));
+      recommendations.add('✅ Zona relativamente segura.');
     }
-
+    
+    // Recomendaciones de servicios
+    if (servicesScore < 30) {
+      recommendations.add('📋 Servicios limitados. Verifica disponibilidad de servicios esenciales.');
+    } else if (servicesScore < 60) {
+      recommendations.add('📋 Servicios básicos disponibles.');
+    } else {
+      recommendations.add('✅ Excelente disponibilidad de servicios.');
+    }
+    
+    // Recomendaciones de transporte
+    if (transportScore < 30) {
+      recommendations.add('🚌 Transporte limitado. Considera opciones de movilidad personal.');
+    } else if (transportScore < 60) {
+      recommendations.add('🚌 Transporte básico disponible.');
+    } else {
+      recommendations.add('✅ Excelente conectividad de transporte.');
+    }
+    
+    // Recomendación general
+    final overallScore = _calculateOverallScore(
+      safetyScore: safetyScore,
+      servicesScore: servicesScore,
+      transportScore: transportScore,
+    );
+    
+    if (overallScore >= 80) {
+      recommendations.add('🌟 Excelente ubicación para renta.');
+    } else if (overallScore >= 60) {
+      recommendations.add('👍 Buena ubicación con algunas consideraciones.');
+    } else {
+      recommendations.add('⚠️ Revisa cuidadosamente antes de decidir.');
+    }
+    
     return recommendations;
   }
 
-  static bool _isGenderRelevantActivity(String activity) {
-    final genderRelevantActivities = [
-      'belleza', 'salon', 'spa', 'moda', 'ropa', 'zapatos',
-      'herramientas', 'automotriz', 'deportes', 'fitness'
-    ];
-    
-    final activityLower = activity.toLowerCase();
-    return genderRelevantActivities.any((relevant) => activityLower.contains(relevant));
+  /// Obtener recomendaciones basadas en historial del usuario
+  Future<List<Recommendation>> getPersonalizedRecommendations({
+    required double latitude,
+    required double longitude,
+  }) async {
+    try {
+      // Obtener historial de búsquedas del usuario
+      final searchHistory = await _searchService.getUserSearchHistory();
+      
+      // Analizar patrones de búsqueda
+      final preferredAreas = <String, int>{};
+      for (final search in searchHistory) {
+        final municipio = search.locationName.split(',').last.trim();
+        preferredAreas[municipio] = (preferredAreas[municipio] ?? 0) + 1;
+      }
+      
+      // Generar recomendaciones basadas en preferencias
+      final recommendations = await generateRecommendations(
+        latitude: latitude,
+        longitude: longitude,
+        locationName: 'Ubicación personalizada',
+        userPreferences: {
+          'preferredAreas': preferredAreas,
+          'searchHistory': searchHistory.length,
+        },
+      );
+      
+      return recommendations;
+    } catch (e) {
+      print('Error obteniendo recomendaciones personalizadas: $e');
+      return [];
+    }
+  }
+}
+
+class LocationRecommendation {
+  final String locationName;
+  final double latitude;
+  final double longitude;
+  final double safetyScore;
+  final double servicesScore;
+  final double transportScore;
+  final double overallScore;
+  final int crimeCount;
+  final List<String> crimeTypes;
+  final Map<String, int> nearbyServices;
+  final List<String> recommendations;
+
+  LocationRecommendation({
+    required this.locationName,
+    required this.latitude,
+    required this.longitude,
+    required this.safetyScore,
+    required this.servicesScore,
+    required this.transportScore,
+    required this.overallScore,
+    required this.crimeCount,
+    required this.crimeTypes,
+    required this.nearbyServices,
+    required this.recommendations,
+  });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'locationName': locationName,
+      'latitude': latitude,
+      'longitude': longitude,
+      'safetyScore': safetyScore,
+      'servicesScore': servicesScore,
+      'transportScore': transportScore,
+      'overallScore': overallScore,
+      'crimeCount': crimeCount,
+      'crimeTypes': crimeTypes,
+      'nearbyServices': nearbyServices,
+      'recommendations': recommendations,
+    };
   }
 
-  static double _getActivityScore(String activity) {
-    final activityLower = activity.toLowerCase();
-    
-    // Actividades de alta demanda
-    if (activityLower.contains('abarrotes') || 
-        activityLower.contains('supermercado') ||
-        activityLower.contains('farmacia')) {
-      return 20;
-    }
-    
-    // Actividades de demanda media
-    if (activityLower.contains('restaurante') ||
-        activityLower.contains('cafeteria') ||
-        activityLower.contains('tienda')) {
-      return 15;
-    }
-    
-    // Actividades especializadas
-    if (activityLower.contains('belleza') ||
-        activityLower.contains('salon') ||
-        activityLower.contains('spa')) {
-      return 10;
-    }
-    
-    return 5; // Score base
+  factory LocationRecommendation.fromJson(Map<String, dynamic> json) {
+    return LocationRecommendation(
+      locationName: json['locationName'] ?? '',
+      latitude: (json['latitude'] ?? 0.0).toDouble(),
+      longitude: (json['longitude'] ?? 0.0).toDouble(),
+      safetyScore: (json['safetyScore'] ?? 0.0).toDouble(),
+      servicesScore: (json['servicesScore'] ?? 0.0).toDouble(),
+      transportScore: (json['transportScore'] ?? 0.0).toDouble(),
+      overallScore: (json['overallScore'] ?? 0.0).toDouble(),
+      crimeCount: json['crimeCount'] ?? 0,
+      crimeTypes: List<String>.from(json['crimeTypes'] ?? []),
+      nearbyServices: Map<String, int>.from(json['nearbyServices'] ?? {}),
+      recommendations: List<String>.from(json['recommendations'] ?? []),
+    );
   }
 }

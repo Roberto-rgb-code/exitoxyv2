@@ -10,6 +10,7 @@ import '../../widgets/recommendation_panel.dart';
 import '../../widgets/demographic_overlay.dart';
 import '../../widgets/marker_counter.dart';
 import '../../widgets/commercial_modal.dart';
+import '../../widgets/integrated_analysis_page.dart';
 
 class ExplorePage extends StatefulWidget {
   const ExplorePage({super.key});
@@ -170,7 +171,7 @@ class _ExplorePageState extends State<ExplorePage> {
           // Recommendations button
           if (exploreController.recommendations.isNotEmpty)
             Positioned(
-              left: 12,
+              right: 12,
               bottom: 18,
               child: FloatingActionButton.extended(
                 onPressed: () => _showRecommendations(context, exploreController),
@@ -180,6 +181,19 @@ class _ExplorePageState extends State<ExplorePage> {
                 foregroundColor: Colors.white,
               ),
             ),
+
+          // Análisis Integrado button
+          Positioned(
+            left: 12,
+            bottom: 18,
+            child: FloatingActionButton.extended(
+              onPressed: () => _showIntegratedAnalysis(context, exploreController),
+              icon: const Icon(Icons.analytics),
+              label: const Text('Análisis'),
+              backgroundColor: Colors.purple,
+              foregroundColor: Colors.white,
+            ),
+          ),
         ],
       ),
     );
@@ -238,5 +252,23 @@ class _ExplorePageState extends State<ExplorePage> {
         controller.clearCommercialSelection();
       });
     }
+  }
+
+  void _showIntegratedAnalysis(BuildContext context, ExploreController controller) {
+    final latitude = controller.lastPoint?.latitude ?? 20.6597;
+    final longitude = controller.lastPoint?.longitude ?? -103.3496;
+    final locationName = 'Ubicación seleccionada';
+
+    // Mostrar análisis integrado directamente sin bottom sheet
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => IntegratedAnalysisPage(
+          latitude: latitude,
+          longitude: longitude,
+          locationName: locationName,
+        ),
+      ),
+    );
   }
 }

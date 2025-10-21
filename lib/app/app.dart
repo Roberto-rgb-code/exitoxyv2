@@ -6,26 +6,78 @@ import 'package:kitit_v2/features/explore/explore_page.dart';
 import 'package:kitit_v2/features/competition/competition_page.dart';
 import 'package:kitit_v2/features/demography/demography_page.dart';
 import 'package:kitit_v2/features/ageb/ageb_page.dart';
-import 'package:kitit_v2/features/predio/predio_page.dart';
-import 'package:kitit_v2/features/three_d/three_d_page.dart';
+
+// Auth
+import 'package:kitit_v2/features/auth/auth_wrapper.dart';
 
 // Bottom nav
 import 'package:kitit_v2/widgets/bottom_nav.dart';
+import 'package:kitit_v2/widgets/user_profile_widget.dart';
 
 class KitItApp extends StatelessWidget {
   const KitItApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final scheme = ColorScheme.fromSeed(seedColor: Colors.indigo);
+    final scheme = ColorScheme.fromSeed(
+      seedColor: const Color(0xFF6750A4),
+      brightness: Brightness.light,
+    );
+    
     return MaterialApp(
-      title: 'KitIt',
+      title: 'exitoxy',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: scheme,
         useMaterial3: true,
+        typography: Typography.material2021(),
+        appBarTheme: AppBarTheme(
+          backgroundColor: scheme.surface,
+          foregroundColor: scheme.onSurface,
+          elevation: 0,
+          centerTitle: false,
+        ),
+        cardTheme: CardThemeData(
+          elevation: 4,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            padding: const EdgeInsets.symmetric(vertical: 16),
+          ),
+        ),
+        filledButtonTheme: FilledButtonThemeData(
+          style: FilledButton.styleFrom(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            padding: const EdgeInsets.symmetric(vertical: 16),
+          ),
+        ),
+        outlinedButtonTheme: OutlinedButtonThemeData(
+          style: OutlinedButton.styleFrom(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            padding: const EdgeInsets.symmetric(vertical: 16),
+          ),
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          filled: true,
+          fillColor: scheme.surfaceVariant.withOpacity(0.5),
+        ),
       ),
-      home: const HomeShell(),
+      home: const AuthWrapper(
+        child: HomeShell(),
+      ),
     );
   }
 }
@@ -46,13 +98,26 @@ class _HomeShellState extends State<HomeShell> {
     CompetitionPage(),
     DemographyPage(), // lee agg/cp del ExploreController si no se le pasan
     AgebPage(),
-    PredioPage(),
-    ThreeDPage(),
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          'exitoxy',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Theme.of(context).colorScheme.primary,
+          ),
+        ),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        actions: [
+          const UserProfileWidget(),
+          SizedBox(width: 16),
+        ],
+      ),
       body: IndexedStack(index: _index, children: _pages),
 
       // ✅ ÚNICO lugar con barra inferior
@@ -64,8 +129,6 @@ class _HomeShellState extends State<HomeShell> {
           BottomNavItem(icon: Icons.leaderboard_rounded, label: 'Competencia'),
           BottomNavItem(icon: Icons.groups_rounded, label: 'Demografía'),
           BottomNavItem(icon: Icons.layers_rounded, label: 'AGEB'),
-          BottomNavItem(icon: Icons.home_work_rounded, label: 'Predio'),
-          BottomNavItem(icon: Icons.threed_rotation_rounded, label: '3D'),
         ],
       ),
     );
