@@ -135,7 +135,7 @@ class _Map3DWidgetState extends State<Map3DWidget> with TickerProviderStateMixin
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Mapa 3D - Delitos',
+                        'Mapa 3D',
                         style: GoogleFonts.poppins(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -188,40 +188,46 @@ class _Map3DWidgetState extends State<Map3DWidget> with TickerProviderStateMixin
                   // Zoom
                   Row(
                     children: [
-                      Icon(Icons.zoom_in, color: colorScheme.onSurface),
+                      Icon(Icons.zoom_in, color: colorScheme.onSurface, size: 20),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Slider(
                           value: _zoom,
                           min: 0.5,
                           max: 2.0,
+                          divisions: 15,
                           onChanged: (value) {
                             setState(() => _zoom = value);
                           },
                           activeColor: Colors.red[700],
+                          inactiveColor: Colors.grey[300],
                         ),
                       ),
-                      Icon(Icons.zoom_out, color: colorScheme.onSurface),
+                      Icon(Icons.zoom_out, color: colorScheme.onSurface, size: 20),
                     ],
                   ),
+                  
+                  const SizedBox(height: 8),
                   
                   // Rotación
                   Row(
                     children: [
-                      Icon(Icons.rotate_left, color: colorScheme.onSurface),
+                      Icon(Icons.rotate_left, color: colorScheme.onSurface, size: 20),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Slider(
                           value: _rotationX,
                           min: -math.pi / 4,
                           max: math.pi / 4,
+                          divisions: 8,
                           onChanged: (value) {
                             setState(() => _rotationX = value);
                           },
                           activeColor: Colors.red[700],
+                          inactiveColor: Colors.grey[300],
                         ),
                       ),
-                      Icon(Icons.rotate_right, color: colorScheme.onSurface),
+                      Icon(Icons.rotate_right, color: colorScheme.onSurface, size: 20),
                     ],
                   ),
                 ],
@@ -234,19 +240,162 @@ class _Map3DWidgetState extends State<Map3DWidget> with TickerProviderStateMixin
   }
 
   Widget _buildMapboxMap(ColorScheme colorScheme) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(12),
-      child: MapWidget(
-        key: const ValueKey("mapWidget"),
-        cameraOptions: CameraOptions(
-          center: Point(coordinates: Position(widget.longitude, widget.latitude)),
-          zoom: 15.0,
-          pitch: _show3D ? 45.0 : 0.0,
+    return Stack(
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: MapWidget(
+            key: const ValueKey("mapWidget"),
+            cameraOptions: CameraOptions(
+              center: Point(coordinates: Position(widget.longitude, widget.latitude)),
+              zoom: 16.0,
+              pitch: _show3D ? 75.0 : 0.0,
+              bearing: _show3D ? 45.0 : 0.0,
+            ),
+            styleUri: 'mapbox://styles/kevinroberto/cmgharq80006y01ryg3vl8zc5',
+            onMapCreated: (MapboxMap mapboxMap) {
+              print('🗺️ Mapa 3D de Mapbox creado correctamente');
+              print('📍 Centro: ${widget.latitude}, ${widget.longitude}');
+              print('🏙️ Ubicación: ${widget.locationName}');
+            },
+          ),
         ),
-        styleUri: MapboxStyles.MAPBOX_STREETS,
-        onMapCreated: (MapboxMap mapboxMap) {
-          // Marcadores de delitos removidos
-        },
+        
+        // Herramientas de navegación 3D
+        if (_show3D) ...[
+          // Botón de rotación izquierda
+          Positioned(
+            top: 16,
+            right: 16,
+            child: _buildNavigationButton(
+              icon: Icons.rotate_left,
+              onPressed: () {
+                setState(() {
+                  _rotationY -= 15;
+                });
+              },
+            ),
+          ),
+          
+          // Botón de rotación derecha
+          Positioned(
+            top: 16,
+            right: 60,
+            child: _buildNavigationButton(
+              icon: Icons.rotate_right,
+              onPressed: () {
+                setState(() {
+                  _rotationY += 15;
+                });
+              },
+            ),
+          ),
+          
+          // Botón de inclinación hacia arriba
+          Positioned(
+            top: 60,
+            right: 16,
+            child: _buildNavigationButton(
+              icon: Icons.keyboard_arrow_up,
+              onPressed: () {
+                setState(() {
+                  _rotationX = (_rotationX + 15).clamp(-45.0, 45.0);
+                });
+              },
+            ),
+          ),
+          
+          // Botón de inclinación hacia abajo
+          Positioned(
+            top: 60,
+            right: 60,
+            child: _buildNavigationButton(
+              icon: Icons.keyboard_arrow_down,
+              onPressed: () {
+                setState(() {
+                  _rotationX = (_rotationX - 15).clamp(-45.0, 45.0);
+                });
+              },
+            ),
+          ),
+          
+          // Botón de zoom in
+          Positioned(
+            bottom: 16,
+            right: 16,
+            child: _buildNavigationButton(
+              icon: Icons.zoom_in,
+              onPressed: () {
+                setState(() {
+                  _zoom = (_zoom + 0.1).clamp(0.5, 2.0);
+                });
+              },
+            ),
+          ),
+          
+          // Botón de zoom out
+          Positioned(
+            bottom: 16,
+            right: 60,
+            child: _buildNavigationButton(
+              icon: Icons.zoom_out,
+              onPressed: () {
+                setState(() {
+                  _zoom = (_zoom - 0.1).clamp(0.5, 2.0);
+                });
+              },
+            ),
+          ),
+          
+          // Botón de reset
+          Positioned(
+            bottom: 16,
+            left: 16,
+            child: _buildNavigationButton(
+              icon: Icons.refresh,
+              onPressed: () {
+                setState(() {
+                  _rotationX = 0.0;
+                  _rotationY = 0.0;
+                  _zoom = 1.0;
+                });
+              },
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildNavigationButton({
+    required IconData icon,
+    required VoidCallback onPressed,
+  }) {
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: onPressed,
+          child: Icon(
+            icon,
+            color: Colors.grey[700],
+            size: 20,
+          ),
+        ),
       ),
     );
   }

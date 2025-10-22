@@ -18,12 +18,17 @@ class AuthWrapper extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<AuthService>(
       builder: (context, authService, _) {
-        // Si hay usuario autenticado, mostrar la app principal inmediatamente
+        // Mostrar loading mientras se verifica la autenticación
+        if (authService.isLoading) {
+          return _buildLoadingScreen(context);
+        }
+
+        // Si hay usuario autenticado, mostrar la app principal
         if (authService.user != null) {
           return child;
         }
 
-        // Si no hay usuario autenticado, mostrar login inmediatamente
+        // Si no hay usuario autenticado, mostrar login
         return const LoginPage();
       },
     );

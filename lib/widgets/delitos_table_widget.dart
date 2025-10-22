@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/delito_model.dart';
+import 'delito_detail_modal.dart';
 
 class DelitosTableWidget extends StatelessWidget {
   final List<DelitoModel> delitos;
@@ -101,6 +102,11 @@ class DelitosTableWidget extends StatelessWidget {
         ],
         rows: delitos.take(50).map((delito) {
           return DataRow(
+            onSelectChanged: (selected) {
+              if (selected == true) {
+                _showDelitoModal(context, delito);
+              }
+            },
             cells: [
               DataCell(
                 Text(
@@ -207,5 +213,14 @@ class DelitosTableWidget extends StatelessWidget {
     } else {
       return Colors.grey;
     }
+  }
+
+  void _showDelitoModal(BuildContext context, DelitoModel delito) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => DelitoDetailModal(delito: delito),
+    );
   }
 }

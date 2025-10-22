@@ -22,6 +22,8 @@ import '../../widgets/delito_info_window.dart';
 import '../../services/delitos_service.dart';
 import '../../models/delito_model.dart';
 import '../../models/recommendation.dart';
+import '../../services/google_places_marketplace_service.dart';
+import '../../models/marketplace_listing.dart';
 
 /// Cache local por CP
 class ExploreLocalCache {
@@ -62,6 +64,7 @@ class ExploreController extends ChangeNotifier {
     print('🗺️ allMarkers() llamado: ${markers.length} marcadores');
     print('🗺️ Marcadores DENUE: ${_markers.keys.where((key) => key.value.startsWith('denue_')).length}');
     print('🗺️ Marcadores Delitos: ${_markers.keys.where((key) => key.value.startsWith('delito_')).length}');
+    print('🗺️ Marcadores Google Places: ${_markers.keys.where((key) => key.value.startsWith('places_')).length}');
     return markers;
   }
 
@@ -73,6 +76,10 @@ class ExploreController extends ChangeNotifier {
   // Variables para análisis de concentración
   bool showConcentrationLayer = false;
   ConcentrationResult? currentConcentration;
+  
+  // Variables para Google Places
+  List<MarketplaceListing> _googlePlacesData = [];
+  bool _showGooglePlacesMarkers = false;
   String? currentActivity;
   
   // Variables para recomendaciones
@@ -510,6 +517,9 @@ class ExploreController extends ChangeNotifier {
       // Generar recomendaciones aunque sea del cache
       await _generateRecommendations();
       
+      // Cargar marcadores de Google Places
+      await loadGooglePlacesMarkers();
+      
       notifyListeners();
       return;
     }
@@ -548,6 +558,9 @@ class ExploreController extends ChangeNotifier {
       
       // Generar recomendaciones
       await _generateRecommendations();
+      
+      // Cargar marcadores de Google Places
+      await loadGooglePlacesMarkers();
 
       print('✅ Análisis de concentración completado');
       notifyListeners();
@@ -648,8 +661,8 @@ class ExploreController extends ChangeNotifier {
           position: entry.position,
           icon: BitmapDescriptor.defaultMarkerWithHue(markerHue),
           infoWindow: InfoWindow(
-            title: entry.name,
-            snippet: 'Tap para más información',
+            title: '🏢 ${entry.name}',
+            snippet: '📍 ${entry.activity} • Tap para más información',
           ),
           onTap: () => _showDenueInfoWindow(entry),
         );
@@ -734,11 +747,11 @@ class ExploreController extends ChangeNotifier {
         final marker = Marker(
           markerId: markerId,
           position: LatLng(delito.y, delito.x), // y=latitud, x=longitud
-          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueViolet),
+          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
           alpha: 0.8, // Transparencia para distinguir de otros marcadores
           infoWindow: InfoWindow(
             title: '⚠️ ${delito.delito}',
-            snippet: 'Tap para detalles',
+            snippet: '📅 ${delito.fecha} • Tap para detalles',
           ),
           onTap: () => _showDelitoInfoWindow(delito),
         );
@@ -867,5 +880,96 @@ class ExploreController extends ChangeNotifier {
     _markers.removeWhere((key, marker) => key.value.startsWith('denue_'));
     notifyListeners();
   }
+
+  /// Carga marcadores de Google Places
+  Future<void> loadGooglePlacesMarkers({
+    double radius = 5000,
+    String type = 'lodging',
+    String keyword = 'renta departamento casa',
+  }) async {
+    try {
+      print('🔍 Cargando marcadores de Google Places...');
+      
+      // Obtener ubicación actual del mapa
+      final center = await mapCtrl?.getVisibleRegion();
+      if (center == null) {
+        print('❌ No se pudo obtener la región visible del mapa');
+        return;
+      }
+      
+      final lat = (center.northeast.latitude + center.southwest.latitude) / 2;
+      final lng = (center.northeast.longitude + center.southwest.longitude) / 2;
+      
+      print('📍 Centro del mapa: $lat, $lng');
+      
+      // Buscar propiedades con Google Places
+      _googlePlacesData = await GooglePlacesMarketplaceService.searchProperties(
+        latitude: lat,
+        longitude: lng,
+        radius: radius,
+        type: type,
+        keyword: keyword,
+      );
+      
+      print('✅ Google Places: ${_googlePlacesData.length} lugares encontrados');
+      
+      // Crear marcadores
+      _createGooglePlacesMarkers();
+      
+      _showGooglePlacesMarkers = true;
+      notifyListeners();
+      
+    } catch (e) {
+      print('❌ Error cargando Google Places: $e');
+    }
+  }
+
+  /// Crea marcadores de Google Places
+  void _createGooglePlacesMarkers() {
+    // Limpiar marcadores anteriores de Google Places
+    _markers.removeWhere((key, marker) => key.value.startsWith('places_'));
+    
+    for (int i = 0; i < _googlePlacesData.length; i++) {
+      final place = _googlePlacesData[i];
+      final markerId = MarkerId('places_$i');
+      
+      final marker = Marker(
+        markerId: markerId,
+        position: LatLng(place.latitude, place.longitude),
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+        infoWindow: InfoWindow(
+          title: '🏠 ${place.title}',
+          snippet: '💰 \$${place.price.toStringAsFixed(0)} • ${place.category}',
+        ),
+        onTap: () => _onGooglePlaceMarkerTap(place),
+      );
+      
+      _markers[markerId] = marker;
+    }
+    
+    print('✅ Google Places: ${_googlePlacesData.length} marcadores creados');
+  }
+
+  /// Maneja el tap en marcadores de Google Places
+  void _onGooglePlaceMarkerTap(MarketplaceListing place) {
+    print('📍 Marcador Google Places tap: ${place.title}');
+    // Aquí podrías mostrar un info window personalizado
+  }
+
+  /// Alterna la visibilidad de marcadores de Google Places
+  void toggleGooglePlacesMarkers() {
+    _showGooglePlacesMarkers = !_showGooglePlacesMarkers;
+    
+    if (_showGooglePlacesMarkers) {
+      _createGooglePlacesMarkers();
+    } else {
+      _markers.removeWhere((key, marker) => key.value.startsWith('places_'));
+    }
+    
+    notifyListeners();
+  }
+
+  /// Obtiene el estado de visibilidad de Google Places
+  bool get showGooglePlacesMarkers => _showGooglePlacesMarkers;
 
 }

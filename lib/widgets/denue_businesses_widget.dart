@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../services/denue_service.dart';
+import '../services/denue_repository.dart';
+import 'denue_detail_modal.dart';
 
 class DenueBusinessesWidget extends StatefulWidget {
   final double latitude;
@@ -232,7 +235,9 @@ class _DenueBusinessesWidgetState extends State<DenueBusinessesWidget> {
   }
 
   Widget _buildBusinessCard(Map<String, dynamic> business, ColorScheme colorScheme) {
-    return Container(
+    return GestureDetector(
+      onTap: () => _showDenueModal(context, business),
+      child: Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -314,6 +319,7 @@ class _DenueBusinessesWidgetState extends State<DenueBusinessesWidget> {
           ),
         ],
       ),
+    ),
     );
   }
 
@@ -332,6 +338,28 @@ class _DenueBusinessesWidgetState extends State<DenueBusinessesWidget> {
           ),
         ),
       ],
+    );
+  }
+
+  void _showDenueModal(BuildContext context, Map<String, dynamic> business) {
+    // Convertir el Map a MarketEntry
+    final entry = MarketEntry(
+      name: business['nombre'] ?? 'Negocio',
+      firm: business['empresa'] ?? business['nombre'] ?? 'Empresa',
+      activity: business['descripcion'] ?? 'Sin descripción',
+      position: LatLng(
+        business['latitud'] ?? 0.0,
+        business['longitud'] ?? 0.0,
+      ),
+      postalCode: business['codigo_postal'],
+      description: business['descripcion'],
+    );
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => DenueDetailModal(entry: entry),
     );
   }
 }

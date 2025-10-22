@@ -11,6 +11,7 @@ import '../../widgets/demographic_overlay.dart';
 import '../../widgets/marker_counter.dart';
 import '../../widgets/commercial_modal.dart';
 import '../../widgets/integrated_analysis_page.dart';
+import '../../widgets/map_legend_widget.dart';
 
 class ExplorePage extends StatefulWidget {
   const ExplorePage({super.key});
@@ -94,14 +95,23 @@ class _ExplorePageState extends State<ExplorePage> {
             left: 12,
             right: 12,
             top: insets.top + 12,
-            child: Material(
-              elevation: 2,
-              borderRadius: BorderRadius.circular(14),
-              color: Colors.white,
+            child: Container(
+              height: 50,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
               child: Row(
                 children: [
-                  const SizedBox(width: 8),
-                  const Icon(Icons.search_rounded),
+                  const SizedBox(width: 12),
+                  const Icon(Icons.search_rounded, color: Colors.grey),
                   const SizedBox(width: 8),
                   Expanded(
                     child: TextField(
@@ -109,6 +119,7 @@ class _ExplorePageState extends State<ExplorePage> {
                       decoration: const InputDecoration(
                         hintText: 'Buscar dirección o lugar',
                         border: InputBorder.none,
+                        contentPadding: EdgeInsets.symmetric(vertical: 12),
                       ),
                       textInputAction: TextInputAction.search,
                       onSubmitted: (_) => _runSearch(),
@@ -117,17 +128,14 @@ class _ExplorePageState extends State<ExplorePage> {
                   IconButton(
                     onPressed: _searching ? null : _runSearch,
                     icon: _searching
-                        ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                        ? const SizedBox(
+                            width: 18, 
+                            height: 18, 
+                            child: CircularProgressIndicator(strokeWidth: 2)
+                          )
                         : const Icon(Icons.arrow_forward_rounded),
                   ),
-                  // Botón de prueba temporal
-                  IconButton(
-                    onPressed: () {
-                      _searchCtrl.text = 'centro';
-                      _runSearch();
-                    },
-                    icon: const Icon(Icons.bug_report, color: Colors.red),
-                  ),
+                  const SizedBox(width: 8),
                 ],
               ),
             ),
@@ -168,17 +176,19 @@ class _ExplorePageState extends State<ExplorePage> {
               child: MarkerCounter(count: exploreController.countMarkers),
             ),
 
-          // Recommendations button
+          // Recommendations button - Reposicionado para no estorbar
           if (exploreController.recommendations.isNotEmpty)
             Positioned(
-              right: 12,
-              bottom: 18,
+              right: 8,
+              bottom: 140, // Más espacio para no estorbar
               child: FloatingActionButton.extended(
                 onPressed: () => _showRecommendations(context, exploreController),
-                icon: const Icon(Icons.lightbulb_outline),
-                label: const Text('Recomendaciones'),
+                icon: const Icon(Icons.lightbulb_outline, size: 16),
+                label: const Text('Recomendaciones', style: TextStyle(fontSize: 11)),
                 backgroundColor: Colors.amber,
                 foregroundColor: Colors.white,
+                elevation: 6,
+                extendedPadding: const EdgeInsets.symmetric(horizontal: 12),
               ),
             ),
 
@@ -194,6 +204,14 @@ class _ExplorePageState extends State<ExplorePage> {
               foregroundColor: Colors.white,
             ),
           ),
+
+          // Map Legend - Solo mostrar cuando hay análisis activo
+          if (exploreController.showConcentrationLayer)
+            Positioned(
+              left: 8,
+              top: insets.top + 100, // Más abajo para no estorbar con search bar
+              child: const MapLegendWidget(),
+            ),
         ],
       ),
     );
