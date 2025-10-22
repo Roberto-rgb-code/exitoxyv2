@@ -28,9 +28,10 @@ class _Map3DWidgetState extends State<Map3DWidget> with TickerProviderStateMixin
   late AnimationController _rotationController;
   late AnimationController _scaleController;
   
-  double _zoom = 1.0;
-  double _rotationX = 0.0;
-  double _rotationY = 0.0;
+  double _zoom = 16.0;
+  double _pitch = 0.0;
+  double _bearing = 0.0;
+  MapboxMap? _mapboxMap;
 
   @override
   void initState() {
@@ -193,11 +194,12 @@ class _Map3DWidgetState extends State<Map3DWidget> with TickerProviderStateMixin
                       Expanded(
                         child: Slider(
                           value: _zoom,
-                          min: 0.5,
-                          max: 2.0,
-                          divisions: 15,
+                          min: 10.0,
+                          max: 20.0,
+                          divisions: 10,
                           onChanged: (value) {
                             setState(() => _zoom = value);
+                            _updateCamera();
                           },
                           activeColor: Colors.red[700],
                           inactiveColor: Colors.grey[300],
@@ -216,12 +218,13 @@ class _Map3DWidgetState extends State<Map3DWidget> with TickerProviderStateMixin
                       const SizedBox(width: 8),
                       Expanded(
                         child: Slider(
-                          value: _rotationX,
-                          min: -math.pi / 4,
-                          max: math.pi / 4,
-                          divisions: 8,
+                          value: _pitch,
+                          min: 0.0,
+                          max: 85.0,
+                          divisions: 17,
                           onChanged: (value) {
-                            setState(() => _rotationX = value);
+                            setState(() => _pitch = value);
+                            _updateCamera();
                           },
                           activeColor: Colors.red[700],
                           inactiveColor: Colors.grey[300],
@@ -248,12 +251,13 @@ class _Map3DWidgetState extends State<Map3DWidget> with TickerProviderStateMixin
             key: const ValueKey("mapWidget"),
             cameraOptions: CameraOptions(
               center: Point(coordinates: Position(widget.longitude, widget.latitude)),
-              zoom: 16.0,
-              pitch: _show3D ? 75.0 : 0.0,
-              bearing: _show3D ? 45.0 : 0.0,
+              zoom: _zoom,
+              pitch: _show3D ? _pitch : 0.0,
+              bearing: _show3D ? _bearing : 0.0,
             ),
             styleUri: 'mapbox://styles/kevinroberto/cmgharq80006y01ryg3vl8zc5',
             onMapCreated: (MapboxMap mapboxMap) {
+              _mapboxMap = mapboxMap;
               print('🗺️ Mapa 3D de Mapbox creado correctamente');
               print('📍 Centro: ${widget.latitude}, ${widget.longitude}');
               print('🏙️ Ubicación: ${widget.locationName}');
@@ -271,8 +275,9 @@ class _Map3DWidgetState extends State<Map3DWidget> with TickerProviderStateMixin
               icon: Icons.rotate_left,
               onPressed: () {
                 setState(() {
-                  _rotationY -= 15;
+                  _bearing -= 15;
                 });
+                _updateCamera();
               },
             ),
           ),
@@ -285,8 +290,9 @@ class _Map3DWidgetState extends State<Map3DWidget> with TickerProviderStateMixin
               icon: Icons.rotate_right,
               onPressed: () {
                 setState(() {
-                  _rotationY += 15;
+                  _bearing += 15;
                 });
+                _updateCamera();
               },
             ),
           ),
@@ -299,8 +305,9 @@ class _Map3DWidgetState extends State<Map3DWidget> with TickerProviderStateMixin
               icon: Icons.keyboard_arrow_up,
               onPressed: () {
                 setState(() {
-                  _rotationX = (_rotationX + 15).clamp(-45.0, 45.0);
+                  _pitch = (_pitch + 15).clamp(0.0, 85.0);
                 });
+                _updateCamera();
               },
             ),
           ),
@@ -313,8 +320,9 @@ class _Map3DWidgetState extends State<Map3DWidget> with TickerProviderStateMixin
               icon: Icons.keyboard_arrow_down,
               onPressed: () {
                 setState(() {
-                  _rotationX = (_rotationX - 15).clamp(-45.0, 45.0);
+                  _pitch = (_pitch - 15).clamp(0.0, 85.0);
                 });
+                _updateCamera();
               },
             ),
           ),
@@ -327,8 +335,9 @@ class _Map3DWidgetState extends State<Map3DWidget> with TickerProviderStateMixin
               icon: Icons.zoom_in,
               onPressed: () {
                 setState(() {
-                  _zoom = (_zoom + 0.1).clamp(0.5, 2.0);
+                  _zoom = (_zoom + 1.0).clamp(10.0, 20.0);
                 });
+                _updateCamera();
               },
             ),
           ),
@@ -341,8 +350,9 @@ class _Map3DWidgetState extends State<Map3DWidget> with TickerProviderStateMixin
               icon: Icons.zoom_out,
               onPressed: () {
                 setState(() {
-                  _zoom = (_zoom - 0.1).clamp(0.5, 2.0);
+                  _zoom = (_zoom - 1.0).clamp(10.0, 20.0);
                 });
+                _updateCamera();
               },
             ),
           ),
@@ -355,10 +365,11 @@ class _Map3DWidgetState extends State<Map3DWidget> with TickerProviderStateMixin
               icon: Icons.refresh,
               onPressed: () {
                 setState(() {
-                  _rotationX = 0.0;
-                  _rotationY = 0.0;
-                  _zoom = 1.0;
+                  _pitch = 0.0;
+                  _bearing = 0.0;
+                  _zoom = 16.0;
                 });
+                _updateCamera();
               },
             ),
           ),
@@ -398,6 +409,19 @@ class _Map3DWidgetState extends State<Map3DWidget> with TickerProviderStateMixin
         ),
       ),
     );
+  }
+
+  void _updateCamera() {
+    if (_mapboxMap != null) {
+      _mapboxMap!.setCamera(
+        CameraOptions(
+          center: Point(coordinates: Position(widget.longitude, widget.latitude)),
+          zoom: _zoom,
+          pitch: _show3D ? _pitch : 0.0,
+          bearing: _show3D ? _bearing : 0.0,
+        ),
+      );
+    }
   }
 
   Color _getCrimeColor(String crimeType) {
