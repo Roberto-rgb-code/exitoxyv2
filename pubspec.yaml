@@ -47,6 +47,9 @@ dependencies:
   flutter_dotenv: ^5.1.0
   syncfusion_flutter_charts: ^26.2.14
   
+  # PostgreSQL GIS
+  postgres: ^3.5.9
+  
   # Firebase Authentication
   firebase_core: ^3.6.0
   firebase_auth: ^5.3.3

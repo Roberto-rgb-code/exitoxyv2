@@ -38,6 +38,27 @@ class Config {
       dotenv.env['MYSQL_DATABASE'] ?? 'kikit';
 
   // ===========================================
+  // POSTGRESQL DATABASE CONFIGURATION (Render)
+  // ===========================================
+  static String get postgresHost => 
+      dotenv.env['POSTGRES_HOST'] ?? 
+      'dpg-d444266mcj7s73bmcar0-a.oregon-postgres.render.com';
+  
+  static int get postgresPort => 
+      int.tryParse(dotenv.env['POSTGRES_PORT'] ?? '5432') ?? 5432;
+  
+  static String get postgresDatabase => 
+      dotenv.env['POSTGRES_DATABASE'] ?? 'gis_db_kmw5';
+  
+  static String get postgresUsername => 
+      dotenv.env['POSTGRES_USERNAME'] ?? 'gis_db_kmw5_user';
+  
+  static String get postgresPassword => 
+      dotenv.env['POSTGRES_PASSWORD'] ?? 'giqLt0wGTmmnBBeAtzGp8ur4r0IOYc9e';
+  
+  static bool get postgresSslRequired => true;
+
+  // ===========================================
   // API ENDPOINTS
   // ===========================================
   static String get apiBaseUrl => 

@@ -1,5 +1,6 @@
 // lib/features/explore/explore_controller.dart
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
@@ -24,6 +25,11 @@ import '../../models/delito_model.dart';
 import '../../models/recommendation.dart';
 import '../../services/google_places_marketplace_service.dart';
 import '../../models/marketplace_listing.dart';
+import '../../services/postgres_gis_service.dart';
+import '../../models/censo_ageb.dart';
+import '../../models/estacion_transporte.dart';
+import '../../models/linea_transporte.dart';
+import '../../models/ruta_transporte.dart';
 
 /// Cache local por CP
 class ExploreLocalCache {
@@ -58,6 +64,7 @@ class ExploreController extends ChangeNotifier {
 
   LatLng? lastPoint;
   final Set<Polygon> polygons = <Polygon>{};
+  final Set<Polyline> polylines = <Polyline>{};
   final Map<MarkerId, Marker> _markers = {};
   Set<Marker> allMarkers() {
     final markers = _markers.values.toSet();
@@ -84,6 +91,14 @@ class ExploreController extends ChangeNotifier {
   
   // Variables para recomendaciones
   List<Recommendation> recommendations = [];
+  
+  // Variables para capas PostGIS
+  bool _showPostgisAgebLayer = false;
+  bool _showPostgisTransporteLayer = false; // Estaciones
+  bool _showPostgisRutasLayer = false;
+  bool _showPostgisLineasLayer = false;
+  final PostgresGisService _postgisService = PostgresGisService();
+  final Map<String, dynamic> _postgisData = {};
 
   // Variables para marcadores comerciales
   bool hasPaintedAZone = false;
@@ -807,6 +822,87 @@ class ExploreController extends ChangeNotifier {
       LatLng(delito.y, delito.x),
     );
   }
+  
+  /// Muestra información de una Colonia PostGIS
+  void _showPostgisAgebInfoWindow(Map<String, dynamic> data) {
+    try {
+      final ageb = CensoAgeb.fromJson(data);
+      final centroid = ageb.centroid;
+      if (centroid != null) {
+        customInfoWindowController?.addInfoWindow?.call(
+          _PostgisAgebInfoWindow(
+            ageb: ageb, 
+            controller: customInfoWindowController,
+          ),
+          LatLng(centroid['latitude']!, centroid['longitude']!),
+        );
+      }
+    } catch (e) {
+      print('❌ Error mostrando info Colonia PostGIS: $e');
+    }
+  }
+  
+  /// Muestra información de una estación de transporte
+  void _showEstacionInfoWindow(EstacionTransporte estacion) {
+    final coords = estacion.coordinates;
+    if (coords != null) {
+      customInfoWindowController?.addInfoWindow?.call(
+        _EstacionInfoWindow(
+          estacion: estacion,
+          controller: customInfoWindowController,
+        ),
+        LatLng(coords['latitude']!, coords['longitude']!),
+      );
+    }
+  }
+  
+  /// Muestra información de una ruta de transporte
+  void _showRutaInfoWindow(Map<String, dynamic> data, LatLng? position) {
+    if (position != null) {
+      customInfoWindowController?.addInfoWindow?.call(
+        _RutaInfoWindow(
+          data: data,
+          controller: customInfoWindowController,
+        ),
+        position,
+      );
+    }
+  }
+  
+  /// Muestra información de una línea de transporte masivo
+  void _showLineaInfoWindow(Map<String, dynamic> data, LatLng? position) {
+    if (position != null) {
+      customInfoWindowController?.addInfoWindow?.call(
+        _LineaInfoWindow(
+          data: data,
+          controller: customInfoWindowController,
+        ),
+        position,
+      );
+    }
+  }
+  
+  /// Helper para convertir a int
+  int? _toInt(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is String) return int.tryParse(value);
+    return null;
+  }
+
+  /// Helper para convertir a double
+  double? _toDouble(dynamic value) {
+    if (value == null) return null;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) return double.tryParse(value);
+    return null;
+  }
+
+  /// Genera un color único basado en un ID
+  Color _getColorForId(int id, List<Color> colorPalette) {
+    return colorPalette[id % colorPalette.length];
+  }
 
   /// Convierte un color a hue para BitmapDescriptor
   double _colorToHue(Color color) {
@@ -972,4 +1068,914 @@ class ExploreController extends ChangeNotifier {
   /// Obtiene el estado de visibilidad de Google Places
   bool get showGooglePlacesMarkers => _showGooglePlacesMarkers;
 
+  // ============================================================
+  // CAPAS POSTGIS
+  // ============================================================
+
+  /// Carga y muestra capas PostGIS (Colonias, Estaciones, Rutas, Líneas)
+  Future<void> loadPostgisLayers({
+    bool showAgeb = false, 
+    bool showTransporte = false,
+    bool showRutas = false,
+    bool showLineas = false,
+  }) async {
+    _showPostgisAgebLayer = showAgeb;
+    _showPostgisTransporteLayer = showTransporte;
+    _showPostgisRutasLayer = showRutas;
+    _showPostgisLineasLayer = showLineas;
+    
+    // Limpiar capas que ahora están ocultas
+    if (!showAgeb) {
+      polygons.removeWhere((p) => p.polygonId.value.startsWith('postgis_ageb_'));
+    }
+    if (!showTransporte) {
+      _markers.removeWhere((key, marker) => key.value.startsWith('postgis_estacion_'));
+    }
+    if (!showRutas) {
+      polylines.removeWhere((p) => p.polylineId.value.startsWith('postgis_ruta_'));
+    }
+    if (!showLineas) {
+      polylines.removeWhere((p) => p.polylineId.value.startsWith('postgis_linea_'));
+    }
+    
+    // Cargar capas que ahora están visibles
+    if (showAgeb) {
+      await _loadAgebPostgisLayer();
+    }
+    
+    if (showTransporte) {
+      await _loadTransportePostgisLayer();
+    }
+    
+    if (showRutas) {
+      await _loadRutasPostgisLayer();
+    }
+    
+    if (showLineas) {
+      await _loadLineasPostgisLayer();
+    }
+    
+    notifyListeners();
+  }
+
+  /// Carga capa de Colonias desde PostGIS
+  Future<void> _loadAgebPostgisLayer() async {
+    try {
+      print('🔍 Cargando capa de Colonias PostGIS...');
+      
+      // Obtener bounds del mapa visible
+      final visibleRegion = await mapCtrl?.getVisibleRegion();
+      if (visibleRegion == null) {
+        print('❌ No se pudo obtener región visible');
+        return;
+      }
+      
+      // Cargar colonias en el área visible
+      final agebData = await _postgisService.getAgebInBounds(
+        minLat: visibleRegion.southwest.latitude,
+        minLng: visibleRegion.southwest.longitude,
+        maxLat: visibleRegion.northeast.latitude,
+        maxLng: visibleRegion.northeast.longitude,
+        limit: 50, // Limitar para performance
+      );
+      
+      print('✅ Colonias: ${agebData.length} áreas cargadas');
+      
+      // Limpiar colonias PostGIS anteriores
+      polygons.removeWhere((p) => p.polygonId.value.startsWith('postgis_ageb_'));
+      
+      // Convertir GeoJSON a Polygon
+      final pm = PolygonsMethods();
+      
+      // Calcular población min/max para coloreado
+      int? minPob, maxPob;
+      final pobTots = agebData.where((d) => d['POBTOT'] != null)
+          .map((d) => _toInt(d['POBTOT']))
+          .where((p) => p != null)
+          .cast<int>()
+          .toList();
+      
+      if (pobTots.isNotEmpty) {
+        minPob = pobTots.reduce((a, b) => a < b ? a : b);
+        maxPob = pobTots.reduce((a, b) => a > b ? a : b);
+        print('📊 Población Colonias: min=$minPob, max=$maxPob');
+      }
+      
+      for (int i = 0; i < agebData.length; i++) {
+        final data = agebData[i];
+        final geomJson = data['geom_json'] as String?;
+        
+        if (geomJson != null && geomJson.isNotEmpty) {
+          try {
+            final geoJsonMap = json.decode(geomJson) as Map<String, dynamic>;
+            final pts = pm.geometryToLatLngList(geoJsonMap);
+            
+            if (pts.length >= 3) {
+              // Determinar color según población
+              Color fillColor = Colors.blue.withOpacity(0.2);
+              Color strokeColor = Colors.blue;
+              
+              if (minPob != null && maxPob != null && minPob != maxPob) {
+                final pobtot = _toInt(data['POBTOT']);
+                if (pobtot != null) {
+                  // Gradiente de azul claro a azul oscuro según población
+                  final ratio = (pobtot - minPob) / (maxPob - minPob);
+                  final intensity = (ratio * 255).toInt().clamp(50, 255);
+                  strokeColor = Color.fromARGB(255, 0, 100, intensity);
+                  fillColor = Color.fromARGB(50, 0, 100, intensity);
+                }
+              }
+              
+              final polygon = Polygon(
+                polygonId: PolygonId('postgis_ageb_$i'),
+                points: pts,
+                fillColor: fillColor,
+                strokeColor: strokeColor,
+                strokeWidth: 2,
+                geodesic: true,
+                consumeTapEvents: true,
+                onTap: () => _showPostgisAgebInfoWindow(data),
+              );
+              polygons.add(polygon);
+            }
+          } catch (e) {
+            print('⚠️ Error parseando AGEB $i: $e');
+          }
+        }
+      }
+      
+      _postgisData['ageb'] = agebData;
+      print('✅ Total polígonos después de Colonias PostGIS: ${polygons.length}');
+      notifyListeners();
+      
+    } catch (e) {
+      print('❌ Error cargando Colonias PostGIS: $e');
+    }
+  }
+
+  /// Carga capas de transporte (estaciones) desde PostGIS
+  Future<void> _loadTransportePostgisLayer() async {
+    try {
+      print('🔍 Cargando estaciones de transporte PostGIS...');
+      
+      // Cargar estaciones
+      final estacionesData = await _postgisService.getEstacionesTransporte(limit: 50);
+      print('✅ Estaciones: ${estacionesData.length} cargadas');
+      
+      // Crear marcadores de estaciones
+      _markers.removeWhere((key, marker) => key.value.startsWith('postgis_estacion_'));
+      for (int i = 0; i < estacionesData.length; i++) {
+        final estacion = EstacionTransporte.fromJson(estacionesData[i]);
+        final coords = estacion.coordinates;
+        
+        if (coords != null) {
+          final markerId = MarkerId('postgis_estacion_$i');
+          final marker = Marker(
+            markerId: markerId,
+            position: LatLng(coords['latitude']!, coords['longitude']!),
+            icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueViolet),
+            infoWindow: InfoWindow(
+              title: '🚉 ${estacion.nombre ?? "Estación"}',
+              snippet: '${estacion.sistema ?? ""} • ${estacion.estado ?? ""}',
+            ),
+            onTap: () => _showEstacionInfoWindow(estacion),
+          );
+          _markers[markerId] = marker;
+        }
+      }
+      
+      // Guardar datos
+      _postgisData['estaciones'] = estacionesData;
+      print('✅ ${_markers.length} marcadores de estaciones agregadas');
+      notifyListeners();
+      
+    } catch (e) {
+      print('❌ Error cargando estaciones PostGIS: $e');
+    }
+  }
+  
+  /// Carga capa de rutas desde PostGIS
+  Future<void> _loadRutasPostgisLayer() async {
+    try {
+      print('🔍 Cargando rutas de transporte PostGIS...');
+      
+      final rutasData = await _postgisService.getRutasTransporte(limit: 100);
+      print('✅ Rutas: ${rutasData.length} cargadas');
+      
+      // Limpiar polylines de rutas anteriores
+      polylines.removeWhere((p) => p.polylineId.value.startsWith('postgis_ruta_'));
+      
+      // Contador para polylines agregadas
+      int addedCount = 0;
+      
+      // Convertir GeoJSON a Polyline
+      final pm = PolygonsMethods();
+      for (int i = 0; i < rutasData.length; i++) {
+        final data = rutasData[i];
+        final geomJson = data['geom_json'] as String?;
+        final folderPath = data['FOLDERPATH']?.toString().toLowerCase() ?? '';
+        
+        if (geomJson != null && geomJson.isNotEmpty) {
+          try {
+            final geoJsonMap = json.decode(geomJson) as Map<String, dynamic>;
+            final type = geoJsonMap['type']?.toString().toLowerCase();
+            
+            if (type == 'multilinestring' || type == 'linestring') {
+              List<LatLng> pts = [];
+              if (type == 'multilinestring') {
+                final coords = geoJsonMap['coordinates'] as List?;
+                if (coords != null && coords.isNotEmpty) {
+                  final firstLine = coords.first;
+                  for (final coord in firstLine) {
+                    if (coord is List && coord.length >= 2) {
+                      final lng = (coord[0] as num).toDouble();
+                      final lat = (coord[1] as num).toDouble();
+                      pts.add(LatLng(lat, lng));
+                    }
+                  }
+                }
+              } else {
+                pts = pm.geometryToLatLngList(geoJsonMap);
+              }
+              
+              if (pts.length >= 2) {
+                // Color único por cada ruta basado en ID
+                final routeId = _toInt(data['id']) ?? i;
+                final orangePalette = [
+                  Colors.orange,
+                  Colors.deepOrange,
+                  Colors.orange.shade700,
+                  Colors.deepOrange.shade700,
+                  Colors.deepOrange.shade900,
+                  Colors.orange.shade800,
+                  Colors.deepOrange.shade600,
+                  Colors.orange.shade600,
+                ];
+                final routeColor = _getColorForId(routeId, orangePalette);
+                
+                final polyline = Polyline(
+                  polylineId: PolylineId('postgis_ruta_$i'),
+                  points: pts,
+                  color: routeColor,
+                  width: 5, // Aumentar ancho para mejor visibilidad
+                  geodesic: true,
+                  patterns: [], // Sin patrones
+                  visible: true,
+                  consumeTapEvents: true,
+                  onTap: () => _showRutaInfoWindow(data, pts.isNotEmpty ? pts.first : null),
+                );
+                polylines.add(polyline);
+                addedCount++;
+                print('✅ Polyline ruta $i agregada: ${pts.length} puntos, color=${routeColor.value.toRadixString(16)}');
+              }
+            }
+          } catch (e) {
+            print('⚠️ Error parseando ruta $i: $e');
+          }
+        }
+      }
+      
+      _postgisData['rutas'] = rutasData;
+      print('✅ $addedCount polylines de rutas agregadas (total: ${polylines.length})');
+      notifyListeners();
+      
+    } catch (e) {
+      print('❌ Error cargando rutas PostGIS: $e');
+    }
+  }
+  
+  /// Carga capa de líneas de transporte masivo desde PostGIS
+  Future<void> _loadLineasPostgisLayer() async {
+    try {
+      print('🔍 Cargando líneas de transporte masivo PostGIS...');
+      
+      final lineasData = await _postgisService.getLineasTransporte(limit: 38);
+      print('✅ Líneas: ${lineasData.length} cargadas');
+      
+      // Limpiar polylines de líneas anteriores
+      polylines.removeWhere((p) => p.polylineId.value.startsWith('postgis_linea_'));
+      
+      // Contador para polylines agregadas
+      int addedCount = 0;
+      
+      // Convertir GeoJSON MultiLineString a Polyline
+      final pm = PolygonsMethods();
+      for (int i = 0; i < lineasData.length; i++) {
+        final data = lineasData[i];
+        final geomJson = data['geom_json'] as String?;
+        final tipoCo = data['Tipo_de_co']?.toString().toLowerCase() ?? '';
+        
+        if (geomJson != null && geomJson.isNotEmpty) {
+          try {
+            final geoJsonMap = json.decode(geomJson) as Map<String, dynamic>;
+            final type = geoJsonMap['type']?.toString().toLowerCase();
+            
+            if (type == 'multilinestring' || type == 'linestring') {
+              List<LatLng> pts = [];
+              if (type == 'multilinestring') {
+                final coords = geoJsonMap['coordinates'] as List?;
+                if (coords != null && coords.isNotEmpty) {
+                  final firstLine = coords.first;
+                  for (final coord in firstLine) {
+                    if (coord is List && coord.length >= 2) {
+                      final lng = (coord[0] as num).toDouble();
+                      final lat = (coord[1] as num).toDouble();
+                      pts.add(LatLng(lat, lng));
+                    }
+                  }
+                }
+              } else {
+                pts = pm.geometryToLatLngList(geoJsonMap);
+              }
+              
+              if (pts.length >= 2) {
+                // Color único por cada línea basado en ID
+                final lineaId = _toInt(data['id']) ?? i;
+                final redPalette = [
+                  Colors.red,
+                  Colors.red.shade700,
+                  Colors.red.shade400,
+                  Colors.red[900]!,
+                  Colors.red.shade800,
+                  Colors.red.shade600,
+                  Colors.red.shade300,
+                  Colors.red.shade500,
+                ];
+                final lineaColor = _getColorForId(lineaId, redPalette);
+                
+                final polyline = Polyline(
+                  polylineId: PolylineId('postgis_linea_$i'),
+                  points: pts,
+                  color: lineaColor,
+                  width: 6, // Aumentar ancho para mejor visibilidad
+                  geodesic: true,
+                  patterns: [], // Sin patrones
+                  visible: true,
+                  consumeTapEvents: true,
+                  onTap: () => _showLineaInfoWindow(data, pts.isNotEmpty ? pts.first : null),
+                );
+                polylines.add(polyline);
+                addedCount++;
+                print('✅ Polyline línea $i agregada: ${pts.length} puntos, color=${lineaColor.value.toRadixString(16)}');
+              }
+            }
+          } catch (e) {
+            print('⚠️ Error parseando línea $i: $e');
+          }
+        }
+      }
+      
+      _postgisData['lineas'] = lineasData;
+      print('✅ $addedCount polylines de líneas agregadas (total: ${polylines.length})');
+      notifyListeners();
+      
+    } catch (e) {
+      print('❌ Error cargando líneas PostGIS: $e');
+    }
+  }
+
+  /// Oculta todas las capas PostGIS
+  void hidePostgisLayers() {
+    _showPostgisAgebLayer = false;
+    _showPostgisTransporteLayer = false;
+    _showPostgisRutasLayer = false;
+    _showPostgisLineasLayer = false;
+    // Limpiar marcadores PostGIS
+    _markers.removeWhere((key, marker) => 
+      key.value.startsWith('postgis_estacion_')
+    );
+    // Limpiar polígonos AGEB PostGIS
+    polygons.removeWhere((p) => p.polygonId.value.startsWith('postgis_ageb_'));
+    // Limpiar polylines PostGIS
+    polylines.removeWhere((p) => 
+      p.polylineId.value.startsWith('postgis_ruta_') || 
+      p.polylineId.value.startsWith('postgis_linea_')
+    );
+    notifyListeners();
+  }
+
+  /// Getter para visibilidad de Colonias PostGIS
+  bool get showPostgisAgebLayer => _showPostgisAgebLayer;
+
+  /// Getter para visibilidad de Transporte PostGIS (Estaciones)
+  bool get showPostgisTransporteLayer => _showPostgisTransporteLayer;
+  
+  /// Getter para visibilidad de Rutas PostGIS
+  bool get showPostgisRutasLayer => _showPostgisRutasLayer;
+  
+  /// Getter para visibilidad de Líneas PostGIS
+  bool get showPostgisLineasLayer => _showPostgisLineasLayer;
+
+}
+
+/// Widget para mostrar información de Colonia PostGIS en el mapa
+class _PostgisAgebInfoWindow extends StatelessWidget {
+  final CensoAgeb ageb;
+  final CustomInfoWindowController? controller;
+  
+  const _PostgisAgebInfoWindow({
+    required this.ageb,
+    required this.controller,
+  });
+  
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 320,
+      height: 500,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+        border: Border.all(color: Colors.blue, width: 2),
+      ),
+      child: Column(
+        children: [
+          // Header con botón de cerrar
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.blue[50],
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(12),
+                topRight: Radius.circular(12),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.location_city, color: Colors.blue[700], size: 24),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    ageb.nombre ?? 'Colonia',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close, color: Colors.black54),
+                  onPressed: () {
+                    controller?.hideInfoWindow?.call();
+                  },
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+              ],
+            ),
+          ),
+          // Contenido scrolleable
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Ubicación
+                  _buildSection('Ubicación', [
+                    if (ageb.muns != null)
+                      _buildInfoRow('Municipio', ageb.muns!),
+                    if (ageb.numcol != null)
+                      _buildInfoRow('Número de Colonia', ageb.numcol.toString()),
+                    if (ageb.cp != null)
+                      _buildInfoRow('Código Postal', ageb.cp.toString()),
+                    if (ageb.supm2 != null)
+                      _buildInfoRow('Superficie', '${(ageb.supm2! / 10000).toStringAsFixed(2)} ha'),
+                  ]),
+                  const Divider(height: 24),
+                  // Población
+                  _buildSection('Población', [
+                    if (ageb.pobtot != null)
+                      _buildInfoRow('Población Total', _formatNumber(ageb.pobtot!)),
+                    if (ageb.pobfem != null)
+                      _buildInfoRow('Población Femenina', _formatNumber(ageb.pobfem!)),
+                    if (ageb.pobmas != null)
+                      _buildInfoRow('Población Masculina', _formatNumber(ageb.pobmas!)),
+                  ]),
+                  const Divider(height: 24),
+                  // Educación
+                  _buildSection('Educación', [
+                    if (ageb.graproes != null)
+                      _buildInfoRow('Escolaridad Promedio', '${ageb.graproes!.toStringAsFixed(2)} años'),
+                    if (ageb.graproesF != null)
+                      _buildInfoRow('Escolaridad Femenina', '${ageb.graproesF!.toStringAsFixed(2)} años'),
+                    if (ageb.graproesM != null)
+                      _buildInfoRow('Escolaridad Masculina', '${ageb.graproesM!.toStringAsFixed(2)} años'),
+                  ]),
+                  const Divider(height: 24),
+                  // Ocupación
+                  _buildSection('Ocupación', [
+                    if (ageb.pea != null)
+                      _buildInfoRow('Población Económicamente Activa', _formatNumber(ageb.pea!)),
+                    if (ageb.pocupada != null)
+                      _buildInfoRow('Población Ocupada', _formatNumber(ageb.pocupada!)),
+                    if (ageb.pdesocup != null)
+                      _buildInfoRow('Población Desocupada', _formatNumber(ageb.pdesocup!)),
+                    if (ageb.peInac != null)
+                      _buildInfoRow('Población Inactiva', _formatNumber(ageb.peInac!)),
+                  ]),
+                  const Divider(height: 24),
+                  // Vivienda
+                  _buildSection('Vivienda', [
+                    if (ageb.vvtot != null)
+                      _buildInfoRow('Total de Viviendas', _formatNumber(ageb.vvtot!)),
+                    if (ageb.tvivhab != null)
+                      _buildInfoRow('Viviendas Habitadas', _formatNumber(ageb.tvivhab!)),
+                    if (ageb.promOcup != null)
+                      _buildInfoRow('Promedio Ocupantes', ageb.promOcup!.toStringAsFixed(2)),
+                  ]),
+                  const Divider(height: 24),
+                  // Discapacidades
+                  _buildSection('Discapacidades y Limitaciones', [
+                    if (ageb.pconDisc != null)
+                      _buildInfoRow('Con Discapacidad', _formatNumber(ageb.pconDisc!)),
+                    if (ageb.pconLim != null)
+                      _buildInfoRow('Con Limitación', _formatNumber(ageb.pconLim!)),
+                    if (ageb.psindLim != null)
+                      _buildInfoRow('Sin Limitación', _formatNumber(ageb.psindLim!)),
+                  ]),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildSection(String title, List<Widget> children) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            color: Colors.blue,
+          ),
+        ),
+        const SizedBox(height: 8),
+        ...children,
+      ],
+    );
+  }
+  
+  Widget _buildInfoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            flex: 2,
+            child: Text(
+              '$label:',
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: Colors.grey,
+              ),
+            ),
+          ),
+          Expanded(
+            flex: 3,
+            child: Text(
+              value,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Colors.black87,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  String _formatNumber(int number) {
+    return number.toString().replaceAllMapped(
+      RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
+      (match) => '${match[1]},',
+    );
+  }
+}
+
+/// Widget para mostrar información de Estaciones en el mapa
+class _EstacionInfoWindow extends StatelessWidget {
+  final EstacionTransporte estacion;
+  final CustomInfoWindowController? controller;
+  
+  const _EstacionInfoWindow({
+    required this.estacion,
+    required this.controller,
+  });
+  
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 280,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+        border: Border.all(color: Colors.purple, width: 2),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.directions_bus, color: Colors.purple[700], size: 24),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  estacion.nombre ?? 'Estación',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.close, color: Colors.black54),
+                onPressed: () {
+                  controller?.hideInfoWindow?.call();
+                },
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (estacion.sistema != null) ...[
+            _buildInfoRow('Sistema', estacion.sistema!),
+          ],
+          if (estacion.linea != null) ...[
+            _buildInfoRow('Línea', estacion.linea!),
+          ],
+          if (estacion.estructura != null) ...[
+            _buildInfoRow('Estructura', estacion.estructura!),
+          ],
+          if (estacion.estado != null) ...[
+            _buildInfoRow('Estado', estacion.estado!),
+          ],
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildInfoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 80,
+            child: Text(
+              '$label:',
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: Colors.grey,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Colors.black87,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Widget para mostrar información de Rutas de Transporte en el mapa
+class _RutaInfoWindow extends StatelessWidget {
+  final Map<String, dynamic> data;
+  final CustomInfoWindowController? controller;
+  
+  const _RutaInfoWindow({
+    required this.data,
+    required this.controller,
+  });
+  
+  @override
+  Widget build(BuildContext context) {
+    final ruta = RutaTransporte.fromJson(data);
+    
+    return Container(
+      width: 280,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+        border: Border.all(color: Colors.orange, width: 2),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.route, color: Colors.orange[700], size: 24),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  ruta.name ?? 'Ruta de Transporte',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.close, color: Colors.black54),
+                onPressed: () {
+                  controller?.hideInfoWindow?.call();
+                },
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (ruta.name != null)
+            _buildInfoRow('Nombre', ruta.name!),
+          if (ruta.folderPath != null)
+            _buildInfoRow('Carpeta', ruta.folderPath!),
+          if (ruta.shapeLeng != null)
+            _buildInfoRow('Longitud', '${ruta.shapeLeng!.toStringAsFixed(2)} m'),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildInfoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 100,
+            child: Text(
+              '$label:',
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: Colors.grey,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Colors.black87,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Widget para mostrar información de Líneas de Transporte Masivo en el mapa
+class _LineaInfoWindow extends StatelessWidget {
+  final Map<String, dynamic> data;
+  final CustomInfoWindowController? controller;
+  
+  const _LineaInfoWindow({
+    required this.data,
+    required this.controller,
+  });
+  
+  @override
+  Widget build(BuildContext context) {
+    final linea = LineaTransporte.fromJson(data);
+    
+    return Container(
+      width: 280,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+        border: Border.all(color: Colors.red, width: 2),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.timeline, color: Colors.red[700], size: 24),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  linea.nombre ?? 'Línea de Transporte',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.close, color: Colors.black54),
+                onPressed: () {
+                  controller?.hideInfoWindow?.call();
+                },
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (linea.nombre != null)
+            _buildInfoRow('Nombre', linea.nombre!),
+          if (linea.tipoCo != null)
+            _buildInfoRow('Tipo', linea.tipoCo!),
+          if (linea.estado != null)
+            _buildInfoRow('Estado', linea.estado!),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildInfoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 100,
+            child: Text(
+              '$label:',
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: Colors.grey,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Colors.black87,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

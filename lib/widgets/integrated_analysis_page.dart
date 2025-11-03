@@ -13,6 +13,8 @@ import 'map3d_widget.dart';
 import 'recommendations_display_widget.dart';
 import 'delitos_table_widget.dart';
 import 'marketplace_listings_widget.dart';
+import 'demografia_widget.dart';
+import 'transporte_widget.dart';
 
 class IntegratedAnalysisPage extends StatefulWidget {
   final double latitude;
@@ -46,7 +48,7 @@ class _IntegratedAnalysisPageState extends State<IntegratedAnalysisPage>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 5, vsync: this);
+    _tabController = TabController(length: 7, vsync: this);
     _loadAllDataAsync();
   }
 
@@ -97,13 +99,16 @@ class _IntegratedAnalysisPageState extends State<IntegratedAnalysisPage>
           indicatorColor: Colors.white,
           labelColor: Colors.white,
           unselectedLabelColor: Colors.white70,
-               tabs: const [
-                 Tab(icon: Icon(Icons.warning), text: 'Delitos'),
-                 Tab(icon: Icon(Icons.business), text: 'DENUE'),
-                 Tab(icon: Icon(Icons.store), text: 'Marketplace'),
-                 Tab(icon: Icon(Icons.lightbulb), text: 'Recomendaciones'),
-                 Tab(icon: Icon(Icons.view_in_ar), text: '3D'),
-               ],
+          isScrollable: true,
+          tabs: const [
+            Tab(icon: Icon(Icons.warning, size: 18), text: 'Delitos'),
+            Tab(icon: Icon(Icons.business, size: 18), text: 'DENUE'),
+            Tab(icon: Icon(Icons.store, size: 18), text: 'Marketplace'),
+            Tab(icon: Icon(Icons.people, size: 18), text: 'Demografía'),
+            Tab(icon: Icon(Icons.directions_bus, size: 18), text: 'Transporte'),
+            Tab(icon: Icon(Icons.lightbulb, size: 18), text: 'Recomendaciones'),
+            Tab(icon: Icon(Icons.view_in_ar, size: 18), text: '3D'),
+          ],
         ),
       ),
       body: TabBarView(
@@ -116,6 +121,14 @@ class _IntegratedAnalysisPageState extends State<IntegratedAnalysisPage>
              businessType: 'Restaurantes',
            ),
            MarketplaceListingsWidget(
+             latitude: widget.latitude,
+             longitude: widget.longitude,
+           ),
+           DemografiaWidget(
+             latitude: widget.latitude,
+             longitude: widget.longitude,
+           ),
+           TransporteWidget(
              latitude: widget.latitude,
              longitude: widget.longitude,
            ),

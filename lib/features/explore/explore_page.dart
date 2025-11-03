@@ -12,6 +12,7 @@ import '../../widgets/marker_counter.dart';
 import '../../widgets/commercial_modal.dart';
 import '../../widgets/integrated_analysis_page.dart';
 import '../../widgets/map_legend_widget.dart';
+import '../../widgets/postgis_layers_widget.dart';
 
 class ExplorePage extends StatefulWidget {
   const ExplorePage({super.key});
@@ -205,12 +206,40 @@ class _ExplorePageState extends State<ExplorePage> {
             ),
           ),
 
+          // Botón para mostrar capas PostGIS
+          if (!exploreController.showPostgisAgebLayer && 
+              !exploreController.showPostgisTransporteLayer && 
+              !exploreController.showPostgisRutasLayer && 
+              !exploreController.showPostgisLineasLayer)
+            Positioned(
+              left: 12,
+              bottom: 80,
+              child: FloatingActionButton.extended(
+                onPressed: () => _showPostgisLayersMenu(context, exploreController),
+                icon: const Icon(Icons.layers),
+                label: const Text('Capas GIS'),
+                backgroundColor: Colors.teal,
+                foregroundColor: Colors.white,
+              ),
+            ),
+
           // Map Legend - Solo mostrar cuando hay análisis activo
           if (exploreController.showConcentrationLayer)
             Positioned(
               left: 8,
               top: insets.top + 100, // Más abajo para no estorbar con search bar
               child: const MapLegendWidget(),
+            ),
+          
+          // PostGIS Layers Control
+          if (exploreController.showPostgisAgebLayer || 
+              exploreController.showPostgisTransporteLayer || 
+              exploreController.showPostgisRutasLayer || 
+              exploreController.showPostgisLineasLayer)
+            Positioned(
+              right: 12,
+              top: insets.top + 100,
+              child: const PostgisLayersWidget(),
             ),
         ],
       ),
@@ -285,6 +314,157 @@ class _ExplorePageState extends State<ExplorePage> {
           latitude: latitude,
           longitude: longitude,
           locationName: locationName,
+        ),
+      ),
+    );
+  }
+
+  void _showPostgisLayersMenu(BuildContext context, ExploreController controller) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.layers, color: Colors.teal[700], size: 28),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text(
+                    'Capas PostGIS',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            
+            // Botón Colonias
+            ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.blue[100],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(Icons.location_city, color: Colors.blue[700]),
+              ),
+              title: const Text('Colonias', style: TextStyle(fontWeight: FontWeight.bold)),
+              subtitle: const Text('Datos demográficos por colonia'),
+              trailing: Switch(
+                value: controller.showPostgisAgebLayer,
+                onChanged: (value) {
+                  Navigator.pop(context);
+                  controller.loadPostgisLayers(
+                    showAgeb: value,
+                    showTransporte: controller.showPostgisTransporteLayer,
+                    showRutas: controller.showPostgisRutasLayer,
+                    showLineas: controller.showPostgisLineasLayer,
+                  );
+                },
+              ),
+            ),
+            
+            const Divider(),
+            
+            // Botón Transporte (Estaciones)
+            ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.purple[100],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(Icons.directions_bus, color: Colors.purple[700]),
+              ),
+              title: const Text('Estaciones', style: TextStyle(fontWeight: FontWeight.bold)),
+              subtitle: const Text('Estaciones de transporte masivo'),
+              trailing: Switch(
+                value: controller.showPostgisTransporteLayer,
+                onChanged: (value) {
+                  Navigator.pop(context);
+                  controller.loadPostgisLayers(
+                    showAgeb: controller.showPostgisAgebLayer,
+                    showTransporte: value,
+                    showRutas: controller.showPostgisRutasLayer,
+                    showLineas: controller.showPostgisLineasLayer,
+                  );
+                },
+              ),
+            ),
+            
+            const Divider(),
+            
+            // Botón Rutas
+            ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.orange[100],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(Icons.route, color: Colors.orange[700]),
+              ),
+              title: const Text('Rutas', style: TextStyle(fontWeight: FontWeight.bold)),
+              subtitle: const Text('Red de transporte y rutas'),
+              trailing: Switch(
+                value: controller.showPostgisRutasLayer,
+                onChanged: (value) {
+                  Navigator.pop(context);
+                  controller.loadPostgisLayers(
+                    showAgeb: controller.showPostgisAgebLayer,
+                    showTransporte: controller.showPostgisTransporteLayer,
+                    showRutas: value,
+                    showLineas: controller.showPostgisLineasLayer,
+                  );
+                },
+              ),
+            ),
+            
+            const Divider(),
+            
+            // Botón Líneas
+            ListTile(
+              leading: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.red[100],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(Icons.timeline, color: Colors.red[700]),
+              ),
+              title: const Text('Líneas', style: TextStyle(fontWeight: FontWeight.bold)),
+              subtitle: const Text('Transporte masivo y alimentador'),
+              trailing: Switch(
+                value: controller.showPostgisLineasLayer,
+                onChanged: (value) {
+                  Navigator.pop(context);
+                  controller.loadPostgisLayers(
+                    showAgeb: controller.showPostgisAgebLayer,
+                    showTransporte: controller.showPostgisTransporteLayer,
+                    showRutas: controller.showPostgisRutasLayer,
+                    showLineas: value,
+                  );
+                },
+              ),
+            ),
+            
+            const SizedBox(height: 16),
+          ],
         ),
       ),
     );

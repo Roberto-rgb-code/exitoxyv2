@@ -9,6 +9,11 @@ class ExploreMap extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.watch<ExploreController>();
+    
+    // Debug: Log polylines
+    print('🗺️ ExploreMap build: ${c.polylines.length} polylines');
+    print('🗺️ Rutas: ${c.polylines.where((p) => p.polylineId.value.startsWith('postgis_ruta_')).length}');
+    print('🗺️ Líneas: ${c.polylines.where((p) => p.polylineId.value.startsWith('postgis_linea_')).length}');
 
     return GoogleMap(
       mapToolbarEnabled: true,
@@ -24,6 +29,7 @@ class ExploreMap extends StatelessWidget {
 
       markers: c.allMarkers(),
       polygons: c.getPolygonsWithConcentration(),
+      polylines: c.polylines,
 
       buildingsEnabled: true,
       compassEnabled: true,

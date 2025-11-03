@@ -1,14 +1,16 @@
 import '../models/delito_model.dart';
 import '../models/search_record_model.dart';
 import '../models/recommendation.dart';
-import '../services/delitos_service.dart';
-import '../services/google_places_service.dart';
-import '../services/search_history_service.dart';
+import 'delitos_service.dart';
+import 'google_places_service.dart';
+import 'search_history_service.dart';
+import 'postgres_gis_service.dart';
 
 class RecommendationService {
   final DelitosService _delitosService = DelitosService();
   final GooglePlacesService _placesService = GooglePlacesService();
   final SearchHistoryService _searchService = SearchHistoryService();
+  final PostgresGisService _postgisService = PostgresGisService();
 
   /// Generar recomendaciones de ubicaciones para renta
   Future<List<Recommendation>> generateRecommendations({
@@ -25,11 +27,17 @@ class RecommendationService {
         radiusMeters: 2000, // 2km de radio
       );
 
-      // Obtener servicios cercanos
+      // Obtener servicios cercanos (Google Places)
       final services = await _placesService.getEssentialServices(
         latitude: latitude,
         longitude: longitude,
         radius: 1000,
+      );
+
+      // Obtener datos PostGIS de transporte
+      final postgisTransportData = await _getPostgisTransportData(
+        latitude: latitude,
+        longitude: longitude,
       );
 
       // Calcular score de seguridad
@@ -38,8 +46,11 @@ class RecommendationService {
       // Calcular score de servicios
       final servicesScore = _calculateServicesScore(services);
 
-      // Calcular score de transporte
-      final transportScore = _calculateTransportScore(services['transit_station'] ?? []);
+      // Calcular score de transporte (combinado Google + PostGIS)
+      final transportScore = _calculateTransportScore(
+        services['transit_station'] ?? [],
+        postgisTransportData: postgisTransportData,
+      );
 
       // Calcular score general
       final overallScore = _calculateOverallScore(
@@ -72,6 +83,11 @@ class RecommendationService {
           'Servicios: ${servicesScore.toStringAsFixed(1)}/100',
           'Transporte: ${transportScore.toStringAsFixed(1)}/100',
           'Delitos en el área: ${delitos.length}',
+          if (postgisTransportData != null) ...[
+            'Estaciones: ${postgisTransportData['estaciones']}',
+            'Rutas: ${postgisTransportData['rutas']}',
+            'Líneas: ${postgisTransportData['lineas']}',
+          ],
         ],
       );
 
@@ -166,20 +182,70 @@ class RecommendationService {
     return score.clamp(0.0, 100.0);
   }
 
-  /// Calcular score de transporte (0-100)
-  double _calculateTransportScore(List<PlaceResult> transitStations) {
-    if (transitStations.isEmpty) return 0.0;
+  /// Obtener datos PostGIS de transporte en el área
+  Future<Map<String, int>> _getPostgisTransportData({
+    required double latitude,
+    required double longitude,
+  }) async {
+    try {
+      // Obtener datos de transporte PostGIS
+      final [estacionesData, rutasData, lineasData] = await Future.wait([
+        _postgisService.getEstacionesTransporte(),
+        _postgisService.getRutasTransporte(),
+        _postgisService.getLineasTransporte(),
+      ]);
+
+      return {
+        'estaciones': estacionesData.length,
+        'rutas': rutasData.length,
+        'lineas': lineasData.length,
+      };
+    } catch (e) {
+      print('⚠️ Error obteniendo datos PostGIS de transporte: $e');
+      return {'estaciones': 0, 'rutas': 0, 'lineas': 0};
+    }
+  }
+
+  /// Calcular score de transporte (0-100) - ahora incluye datos PostGIS
+  double _calculateTransportScore(
+    List<PlaceResult> transitStations, {
+    Map<String, int>? postgisTransportData,
+  }) {
+    double score = 0.0;
     
-    // Score basado en cantidad de estaciones de transporte
-    double score = (transitStations.length * 20).toDouble().clamp(0.0, 100.0);
+    // Score basado en Google Places (50% del total)
+    if (transitStations.isNotEmpty) {
+      final googleScore = (transitStations.length * 10).toDouble().clamp(0.0, 50.0);
+      score += googleScore;
+      
+      // Bonus por estaciones con buena calificación
+      try {
+        final avgRating = transitStations
+            .map((s) => s.rating)
+            .reduce((a, b) => a + b) / transitStations.length;
+        
+        if (avgRating > 4.0) score += 10.0;
+        else if (avgRating > 3.5) score += 5.0;
+      } catch (e) {
+        // Ignorar si no hay ratings
+      }
+    }
     
-    // Bonus por estaciones con buena calificación
-    final avgRating = transitStations
-        .map((s) => s.rating)
-        .reduce((a, b) => a + b) / transitStations.length;
-    
-    if (avgRating > 4.0) score += 20.0;
-    else if (avgRating > 3.5) score += 10.0;
+    // Score basado en PostGIS (50% del total)
+    if (postgisTransportData != null) {
+      final estaciones = postgisTransportData['estaciones'] ?? 0;
+      final rutas = postgisTransportData['rutas'] ?? 0;
+      final lineas = postgisTransportData['lineas'] ?? 0;
+      
+      // Estaciones PostGIS (peso: 20%)
+      score += (estaciones * 0.2).clamp(0.0, 20.0);
+      
+      // Rutas (peso: 15%)
+      score += (rutas * 0.3).clamp(0.0, 15.0);
+      
+      // Líneas (peso: 15%)
+      score += (lineas * 0.4).clamp(0.0, 15.0);
+    }
     
     return score.clamp(0.0, 100.0);
   }

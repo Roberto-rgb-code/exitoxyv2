@@ -102,6 +102,63 @@ class MapLegendWidget extends StatelessWidget {
                 subtitle: 'Códigos postales',
                 isVisible: controller.polygons.isNotEmpty,
               ),
+              
+              const SizedBox(height: 8),
+              
+              // Divider para capas PostGIS
+              const Divider(),
+              const SizedBox(height: 8),
+              Text(
+                'Capas PostGIS',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.teal[700],
+                ),
+              ),
+              const SizedBox(height: 8),
+              
+              // AGEB PostGIS
+              _buildLegendItem(
+                icon: Icons.people,
+                color: Colors.blue,
+                title: 'AGEB',
+                subtitle: 'Datos demográficos',
+                isVisible: controller.showPostgisAgebLayer,
+              ),
+              
+              const SizedBox(height: 8),
+              
+              // Estaciones Transporte
+              _buildLegendItem(
+                icon: Icons.directions_bus,
+                color: Colors.purple,
+                title: 'Estaciones',
+                subtitle: 'Transporte masivo',
+                isVisible: controller.showPostgisTransporteLayer,
+              ),
+              
+              const SizedBox(height: 8),
+              
+              // Rutas
+              _buildLegendItem(
+                icon: Icons.route,
+                color: Colors.orange,
+                title: 'Rutas',
+                subtitle: 'Red de transporte',
+                isVisible: controller.showPostgisRutasLayer,
+              ),
+              
+              const SizedBox(height: 8),
+              
+              // Líneas
+              _buildLegendItem(
+                icon: Icons.timeline,
+                color: Colors.red,
+                title: 'Líneas',
+                subtitle: 'Transporte masivo',
+                isVisible: controller.showPostgisLineasLayer,
+              ),
             ],
           ),
         );
