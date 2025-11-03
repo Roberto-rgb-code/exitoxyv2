@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 // Páginas
 import 'package:kitit_v2/features/explore/explore_page.dart';
 import 'package:kitit_v2/features/competition/competition_page.dart';
-import 'package:kitit_v2/features/demography/demography_page.dart';
-import 'package:kitit_v2/features/ageb/ageb_page.dart';
+import 'package:kitit_v2/features/analisis/analisis_page.dart';
+import 'package:kitit_v2/features/mercado/mercado_page.dart';
 
 // Auth
 import 'package:kitit_v2/features/auth/auth_wrapper.dart';
@@ -96,8 +96,8 @@ class _HomeShellState extends State<HomeShell> {
   late final List<Widget> _pages = [
     ExplorePage(),
     CompetitionPage(),
-    DemographyPage(), // lee agg/cp del ExploreController si no se le pasan
-    AgebPage(),
+    AnalisisPage(), // Análisis de estructura de mercado
+    MercadoPage(), // Análisis de elasticidad
   ];
 
   @override
@@ -127,8 +127,8 @@ class _HomeShellState extends State<HomeShell> {
         items: const [
           BottomNavItem(icon: Icons.explore_rounded, label: 'Éxito XY'),
           BottomNavItem(icon: Icons.leaderboard_rounded, label: 'Competencia'),
-          BottomNavItem(icon: Icons.groups_rounded, label: 'Demografía'),
-          BottomNavItem(icon: Icons.layers_rounded, label: 'AGEB'),
+          BottomNavItem(icon: Icons.analytics, label: 'Análisis'),
+          BottomNavItem(icon: Icons.trending_up, label: 'Mercado'),
         ],
       ),
     );
