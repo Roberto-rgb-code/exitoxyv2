@@ -1080,6 +1080,13 @@ class ExploreController extends ChangeNotifier {
     bool showRutas = false,
     bool showLineas = false,
   }) async {
+    // Guardar estados anteriores para detectar cambios
+    final wasAgebActive = _showPostgisAgebLayer;
+    final wasTransporteActive = _showPostgisTransporteLayer;
+    final wasRutasActive = _showPostgisRutasLayer;
+    final wasLineasActive = _showPostgisLineasLayer;
+    
+    // Actualizar estados
     _showPostgisAgebLayer = showAgeb;
     _showPostgisTransporteLayer = showTransporte;
     _showPostgisRutasLayer = showRutas;
@@ -1091,33 +1098,34 @@ class ExploreController extends ChangeNotifier {
     }
     
     // Limpiar capas que ahora están ocultas
-    if (!showAgeb) {
+    if (!showAgeb && wasAgebActive) {
       polygons.removeWhere((p) => p.polygonId.value.startsWith('postgis_ageb_'));
     }
-    if (!showTransporte) {
+    if (!showTransporte && wasTransporteActive) {
       _markers.removeWhere((key, marker) => key.value.startsWith('postgis_estacion_'));
     }
-    if (!showRutas) {
+    if (!showRutas && wasRutasActive) {
       polylines.removeWhere((p) => p.polylineId.value.startsWith('postgis_ruta_'));
     }
-    if (!showLineas) {
+    if (!showLineas && wasLineasActive) {
       polylines.removeWhere((p) => p.polylineId.value.startsWith('postgis_linea_'));
     }
     
-    // Cargar capas que ahora están visibles
-    if (showAgeb) {
+    // SOLO cargar capas que se están activando (cambiando de false a true)
+    // No recargar capas que ya estaban activas
+    if (showAgeb && !wasAgebActive) {
       await _loadAgebPostgisLayer();
     }
     
-    if (showTransporte) {
+    if (showTransporte && !wasTransporteActive) {
       await _loadTransportePostgisLayer();
     }
     
-    if (showRutas) {
+    if (showRutas && !wasRutasActive) {
       await _loadRutasPostgisLayer();
     }
     
-    if (showLineas) {
+    if (showLineas && !wasLineasActive) {
       await _loadLineasPostgisLayer();
     }
     
@@ -1209,11 +1217,11 @@ class ExploreController extends ChangeNotifier {
   /// Carga capas de transporte (estaciones) desde PostGIS
   Future<void> _loadTransportePostgisLayer() async {
     try {
-      print('🔍 Cargando estaciones de transporte PostGIS...');
+      print('🔍 Cargando estaciones de transporte PostGIS (TODAS)...');
       
-      // Cargar estaciones
-      final estacionesData = await _postgisService.getEstacionesTransporte(limit: 50);
-      print('✅ Estaciones: ${estacionesData.length} cargadas');
+      // Cargar TODAS las estaciones sin límite
+      final estacionesData = await _postgisService.getEstacionesTransporte(limit: 10000);
+      print('✅ Estaciones: ${estacionesData.length} cargadas (TODAS)');
       
       // Crear marcadores de estaciones
       _markers.removeWhere((key, marker) => key.value.startsWith('postgis_estacion_'));
@@ -1250,10 +1258,11 @@ class ExploreController extends ChangeNotifier {
   /// Carga capa de rutas desde PostGIS
   Future<void> _loadRutasPostgisLayer() async {
     try {
-      print('🔍 Cargando rutas de transporte PostGIS...');
+      print('🔍 Cargando rutas de transporte PostGIS (TODAS)...');
       
-      final rutasData = await _postgisService.getRutasTransporte(limit: 100);
-      print('✅ Rutas: ${rutasData.length} cargadas');
+      // Cargar TODAS las rutas sin límite
+      final rutasData = await _postgisService.getRutasTransporte(limit: 10000);
+      print('✅ Rutas: ${rutasData.length} cargadas (TODAS)');
       
       // Limpiar polylines de rutas anteriores
       polylines.removeWhere((p) => p.polylineId.value.startsWith('postgis_ruta_'));
@@ -1340,10 +1349,11 @@ class ExploreController extends ChangeNotifier {
   /// Carga capa de líneas de transporte masivo desde PostGIS
   Future<void> _loadLineasPostgisLayer() async {
     try {
-      print('🔍 Cargando líneas de transporte masivo PostGIS...');
+      print('🔍 Cargando líneas de transporte masivo PostGIS (TODAS)...');
       
-      final lineasData = await _postgisService.getLineasTransporte(limit: 38);
-      print('✅ Líneas: ${lineasData.length} cargadas');
+      // Cargar TODAS las líneas sin límite
+      final lineasData = await _postgisService.getLineasTransporte(limit: 10000);
+      print('✅ Líneas: ${lineasData.length} cargadas (TODAS)');
       
       // Limpiar polylines de líneas anteriores
       polylines.removeWhere((p) => p.polylineId.value.startsWith('postgis_linea_'));
