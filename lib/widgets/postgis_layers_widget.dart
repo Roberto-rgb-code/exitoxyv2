@@ -44,7 +44,7 @@ class PostgisLayersWidget extends StatelessWidget {
                       ),
                     ),
                     IconButton(
-                      onPressed: () => controller.hidePostgisLayers(),
+                      onPressed: () => controller.hidePostgisLayersPanel(),
                       icon: const Icon(Icons.close, size: 20),
                       color: Colors.grey[600],
                       padding: EdgeInsets.zero,

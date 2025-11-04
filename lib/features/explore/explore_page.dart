@@ -206,7 +206,7 @@ class _ExplorePageState extends State<ExplorePage> {
             ),
           ),
 
-          // Botón para mostrar capas PostGIS
+          // Botón para mostrar capas PostGIS (cuando no hay capas activas)
           if (!exploreController.showPostgisAgebLayer && 
               !exploreController.showPostgisTransporteLayer && 
               !exploreController.showPostgisRutasLayer && 
@@ -223,6 +223,23 @@ class _ExplorePageState extends State<ExplorePage> {
               ),
             ),
 
+          // Botón para mostrar panel de capas (cuando hay capas activas pero panel oculto)
+          if ((exploreController.showPostgisAgebLayer || 
+              exploreController.showPostgisTransporteLayer || 
+              exploreController.showPostgisRutasLayer || 
+              exploreController.showPostgisLineasLayer) &&
+              !exploreController.showPostgisLayersPanel)
+            Positioned(
+              right: 12,
+              bottom: 80,
+              child: FloatingActionButton(
+                onPressed: () => exploreController.openPostgisLayersPanel(),
+                backgroundColor: Colors.teal,
+                foregroundColor: Colors.white,
+                child: const Icon(Icons.layers),
+              ),
+            ),
+
           // Map Legend - Solo mostrar cuando hay análisis activo
           if (exploreController.showConcentrationLayer)
             Positioned(
@@ -232,10 +249,7 @@ class _ExplorePageState extends State<ExplorePage> {
             ),
           
           // PostGIS Layers Control
-          if (exploreController.showPostgisAgebLayer || 
-              exploreController.showPostgisTransporteLayer || 
-              exploreController.showPostgisRutasLayer || 
-              exploreController.showPostgisLineasLayer)
+          if (exploreController.showPostgisLayersPanel)
             Positioned(
               right: 12,
               top: insets.top + 100,

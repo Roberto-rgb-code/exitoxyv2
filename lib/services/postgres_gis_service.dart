@@ -488,6 +488,37 @@ class PostgresGisService {
     return rows;
   }
 
+  /// Obtener TODAS las Colonias sin límite ni filtro de bounds
+  Future<List<Map<String, dynamic>>> getAllAgeb() async {
+    final conn = await getConnection();
+    
+    // Obtener columnas primero
+    final columns = await getTableColumns('ISDCOL2020_2021F');
+    final columnNames = columns.map((col) => col['name'] as String).toList();
+    columnNames.add('geom_json');
+    
+    final result = await conn.execute(
+      '''
+      SELECT 
+        *,
+        ST_AsGeoJSON(ST_Transform(geom, 4326)) as geom_json
+      FROM "ISDCOL2020_2021F";
+      ''',
+    );
+
+    final rows = <Map<String, dynamic>>[];
+    for (final row in result) {
+      final map = <String, dynamic>{};
+      for (var i = 0; i < row.length; i++) {
+        final column = i < columnNames.length ? columnNames[i] : 'col_$i';
+        map[column] = row[i];
+      }
+      rows.add(map);
+    }
+
+    return rows;
+  }
+
   /// Obtener todas las rutas de transporte
   Future<List<Map<String, dynamic>>> getRutasTransporte({
     int limit = 546,

@@ -97,6 +97,7 @@ class ExploreController extends ChangeNotifier {
   bool _showPostgisTransporteLayer = false; // Estaciones
   bool _showPostgisRutasLayer = false;
   bool _showPostgisLineasLayer = false;
+  bool _showPostgisLayersPanel = false; // Control de visibilidad del panel
   final PostgresGisService _postgisService = PostgresGisService();
   final Map<String, dynamic> _postgisData = {};
 
@@ -1084,6 +1085,11 @@ class ExploreController extends ChangeNotifier {
     _showPostgisRutasLayer = showRutas;
     _showPostgisLineasLayer = showLineas;
     
+    // Mostrar el panel cuando se activa una capa
+    if (showAgeb || showTransporte || showRutas || showLineas) {
+      _showPostgisLayersPanel = true;
+    }
+    
     // Limpiar capas que ahora están ocultas
     if (!showAgeb) {
       polygons.removeWhere((p) => p.polygonId.value.startsWith('postgis_ageb_'));
@@ -1121,25 +1127,12 @@ class ExploreController extends ChangeNotifier {
   /// Carga capa de Colonias desde PostGIS
   Future<void> _loadAgebPostgisLayer() async {
     try {
-      print('🔍 Cargando capa de Colonias PostGIS...');
+      print('🔍 Cargando capa de Colonias PostGIS (TODAS las colonias)...');
       
-      // Obtener bounds del mapa visible
-      final visibleRegion = await mapCtrl?.getVisibleRegion();
-      if (visibleRegion == null) {
-        print('❌ No se pudo obtener región visible');
-        return;
-      }
+      // Cargar TODAS las colonias sin límite ni filtro de bounds
+      final agebData = await _postgisService.getAllAgeb();
       
-      // Cargar colonias en el área visible
-      final agebData = await _postgisService.getAgebInBounds(
-        minLat: visibleRegion.southwest.latitude,
-        minLng: visibleRegion.southwest.longitude,
-        maxLat: visibleRegion.northeast.latitude,
-        maxLng: visibleRegion.northeast.longitude,
-        limit: 50, // Limitar para performance
-      );
-      
-      print('✅ Colonias: ${agebData.length} áreas cargadas');
+      print('✅ Colonias: ${agebData.length} áreas cargadas (TODAS)');
       
       // Limpiar colonias PostGIS anteriores
       polygons.removeWhere((p) => p.polygonId.value.startsWith('postgis_ageb_'));
@@ -1454,6 +1447,18 @@ class ExploreController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Oculta solo el panel de capas PostGIS (sin ocultar las capas)
+  void hidePostgisLayersPanel() {
+    _showPostgisLayersPanel = false;
+    notifyListeners();
+  }
+
+  /// Muestra el panel de capas PostGIS
+  void openPostgisLayersPanel() {
+    _showPostgisLayersPanel = true;
+    notifyListeners();
+  }
+
   /// Getter para visibilidad de Colonias PostGIS
   bool get showPostgisAgebLayer => _showPostgisAgebLayer;
 
@@ -1465,6 +1470,9 @@ class ExploreController extends ChangeNotifier {
   
   /// Getter para visibilidad de Líneas PostGIS
   bool get showPostgisLineasLayer => _showPostgisLineasLayer;
+
+  /// Getter para visibilidad del panel de capas PostGIS
+  bool get showPostgisLayersPanel => _showPostgisLayersPanel;
 
 }
 
