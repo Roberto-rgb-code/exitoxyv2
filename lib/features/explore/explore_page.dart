@@ -153,14 +153,14 @@ class _ExplorePageState extends State<ExplorePage> {
           if (exploreController.showConcentrationLayer)
             Positioned(
               right: 12,
-              top: insets.top + 80,
+              top: insets.top + 50,
               child: const ConcentrationLegend(),
             ),
           
           // Demographic overlay
           if (exploreController.demographyAgg != null && exploreController.activeCP != null)
             Positioned(
-              top: insets.top + 80,
+              top: insets.top + 50,
               left: 12,
               right: 12,
               child: DemographicOverlay(
@@ -244,7 +244,7 @@ class _ExplorePageState extends State<ExplorePage> {
           if (exploreController.showConcentrationLayer)
             Positioned(
               left: 8,
-              top: insets.top + 100, // Más abajo para no estorbar con search bar
+              top: insets.top + 50, // Más arriba para mejor visibilidad
               child: const MapLegendWidget(),
             ),
           

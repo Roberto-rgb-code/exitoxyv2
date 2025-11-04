@@ -44,7 +44,8 @@ class MapLegendWidget extends StatelessWidget {
                   ),
                   IconButton(
                     onPressed: () {
-                      // Cerrar la leyenda
+                      // Solo ocultar el panel, no las capas
+                      // Las capas permanecen visibles en el mapa
                       controller.hideConcentrationLayer();
                     },
                     icon: const Icon(Icons.close, size: 20),
@@ -118,11 +119,11 @@ class MapLegendWidget extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               
-              // AGEB PostGIS
+              // Colonias PostGIS
               _buildLegendItem(
-                icon: Icons.people,
+                icon: Icons.location_city,
                 color: Colors.blue,
-                title: 'AGEB',
+                title: 'Colonias',
                 subtitle: 'Datos demográficos',
                 isVisible: controller.showPostgisAgebLayer,
               ),

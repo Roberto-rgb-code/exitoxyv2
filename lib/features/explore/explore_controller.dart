@@ -533,8 +533,14 @@ class ExploreController extends ChangeNotifier {
       // Generar recomendaciones aunque sea del cache
       await _generateRecommendations();
       
-      // Cargar marcadores de Google Places
+      // Cargar marcadores de Google Places (Propiedades)
       await loadGooglePlacesMarkers();
+      
+      // Mostrar marcadores DENUE (Actividades Económicas)
+      await showDenueMarkers(activity);
+      
+      // Mostrar marcadores de delitos
+      await showDelitosMarkers();
       
       notifyListeners();
       return;
@@ -575,8 +581,14 @@ class ExploreController extends ChangeNotifier {
       // Generar recomendaciones
       await _generateRecommendations();
       
-      // Cargar marcadores de Google Places
+      // Cargar marcadores de Google Places (Propiedades)
       await loadGooglePlacesMarkers();
+      
+      // Mostrar marcadores DENUE (Actividades Económicas)
+      await showDenueMarkers(activity);
+      
+      // Mostrar marcadores de delitos
+      await showDelitosMarkers();
 
       print('✅ Análisis de concentración completado');
       notifyListeners();
@@ -968,13 +980,11 @@ class ExploreController extends ChangeNotifier {
     return features;
   }
 
-  /// Oculta la capa de concentración
+  /// Oculta solo el panel de leyenda (sin ocultar marcadores ni capas)
   void hideConcentrationLayer() {
+    // Solo ocultar el panel, NO eliminar marcadores ni limpiar datos
+    // Los marcadores y polígonos permanecen visibles en el mapa
     showConcentrationLayer = false;
-    currentConcentration = null;
-    currentActivity = null;
-    recommendations.clear();
-    _markers.removeWhere((key, marker) => key.value.startsWith('denue_'));
     notifyListeners();
   }
 
