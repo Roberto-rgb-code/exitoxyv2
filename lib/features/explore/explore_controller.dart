@@ -655,24 +655,12 @@ class ExploreController extends ChangeNotifier {
         return;
       }
 
-      // Limpiar marcadores DENUE existentes
-      _markers.removeWhere((key, marker) => key.value.startsWith('denue_'));
+             // Limpiar marcadores DENUE existentes
+       _markers.removeWhere((key, marker) => key.value.startsWith('denue_'));
 
-      // Determinar color basado en concentración
-      double markerHue = BitmapDescriptor.hueBlue; // Default azul
-      if (currentConcentration != null) {
-        // Colores según nivel de concentración
-        if (currentConcentration!.hhi < 1500) {
-          markerHue = BitmapDescriptor.hueGreen; // Verde - Baja concentración
-        } else if (currentConcentration!.hhi < 2500) {
-          markerHue = BitmapDescriptor.hueYellow; // Amarillo - Moderada
-        } else if (currentConcentration!.hhi < 3500) {
-          markerHue = BitmapDescriptor.hueOrange; // Naranja - Alta
-        } else {
-          markerHue = BitmapDescriptor.hueRed; // Rojo - Muy alta
-        }
-        print('🎨 Color de marcadores: HHI=${currentConcentration!.hhi} -> Hue=$markerHue');
-      }
+       // Color azul fijo para Actividades Económicas
+       double markerHue = BitmapDescriptor.hueBlue;
+       print('🎨 Color de marcadores DENUE: Azul (fijo)');
 
       // Crear marcadores
       print('🎨 Creando ${entries.length} marcadores DENUE...');
@@ -816,6 +804,7 @@ class ExploreController extends ChangeNotifier {
         description: entry.description,
         activity: entry.activity,
         concentrationResult: currentConcentration,
+        controller: customInfoWindowController,
       ),
       entry.position,
     );
@@ -831,8 +820,20 @@ class ExploreController extends ChangeNotifier {
         colonia: delito.colonia,
         municipio: delito.municipio,
         bienAfectado: delito.bienAfectado,
+        controller: customInfoWindowController,
       ),
       LatLng(delito.y, delito.x),
+    );
+  }
+  
+  /// Muestra información de un lugar de Google Places
+  void _showGooglePlaceInfoWindow(MarketplaceListing place) {
+    customInfoWindowController?.addInfoWindow?.call(
+      _GooglePlaceInfoWindow(
+        place: place,
+        controller: customInfoWindowController,
+      ),
+      LatLng(place.latitude, place.longitude),
     );
   }
   
@@ -1060,7 +1061,7 @@ class ExploreController extends ChangeNotifier {
   /// Maneja el tap en marcadores de Google Places
   void _onGooglePlaceMarkerTap(MarketplaceListing place) {
     print('📍 Marcador Google Places tap: ${place.title}');
-    // Aquí podrías mostrar un info window personalizado
+    _showGooglePlaceInfoWindow(place);
   }
 
   /// Alterna la visibilidad de marcadores de Google Places
@@ -2060,6 +2061,125 @@ class _LineaInfoWindow extends StatelessWidget {
                 fontWeight: FontWeight.w600,
                 color: Colors.black87,
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Widget para mostrar información de Google Places en el mapa
+class _GooglePlaceInfoWindow extends StatelessWidget {
+  final MarketplaceListing place;
+  final CustomInfoWindowController? controller;
+  
+  const _GooglePlaceInfoWindow({
+    required this.place,
+    required this.controller,
+  });
+  
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 280,
+      constraints: const BoxConstraints(maxHeight: 300),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+        border: Border.all(color: Colors.green, width: 2),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header fijo con botón cerrar
+          Container(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Icon(Icons.home, color: Colors.green[700], size: 24),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    place.title,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close, color: Colors.black54),
+                  onPressed: () {
+                    controller?.hideInfoWindow?.call();
+                  },
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+              ],
+            ),
+          ),
+          // Contenido scrolleable
+          Flexible(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (place.price > 0)
+                    _buildInfoRow('Precio', '\$${place.price.toStringAsFixed(0)}'),
+                  if (place.category.isNotEmpty)
+                    _buildInfoRow('Categoría', place.category),
+                  if (place.description != null && place.description!.isNotEmpty)
+                    _buildInfoRow('Descripción', place.description!),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  Widget _buildInfoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 80,
+            child: Text(
+              '$label:',
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: Colors.grey,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Colors.black87,
+              ),
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],

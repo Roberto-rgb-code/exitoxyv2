@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:kitit_v2/models/concentration_result.dart';
+import 'package:kitit_v2/widgets/custom_info_window.dart';
 
 class DenueInfoWindow extends StatelessWidget {
   final String name;
   final String? description;
   final String activity;
   final ConcentrationResult? concentrationResult;
+  final CustomInfoWindowController? controller;
 
   const DenueInfoWindow({
     Key? key,
@@ -13,6 +15,7 @@ class DenueInfoWindow extends StatelessWidget {
     this.description,
     required this.activity,
     this.concentrationResult,
+    this.controller,
   }) : super(key: key);
 
   @override
@@ -29,10 +32,10 @@ class DenueInfoWindow extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header con nombre y nivel de concentración
+          // Header con nombre, nivel de concentración y botón cerrar
           Row(
             children: [
-              Icon(Icons.storefront, color: theme.primaryColor, size: 20),
+              Icon(Icons.storefront, color: Colors.blue, size: 20),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -46,6 +49,14 @@ class DenueInfoWindow extends StatelessWidget {
               ),
               if (concentrationResult != null)
                 _buildConcentrationBadge(concentrationResult!),
+              IconButton(
+                icon: const Icon(Icons.close, color: Colors.black54, size: 20),
+                onPressed: () {
+                  controller?.hideInfoWindow?.call();
+                },
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
             ],
           ),
           

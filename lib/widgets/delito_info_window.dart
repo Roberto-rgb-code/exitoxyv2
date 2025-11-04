@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kitit_v2/widgets/custom_info_window.dart';
 
 class DelitoInfoWindow extends StatelessWidget {
   final String delito;
@@ -7,6 +8,7 @@ class DelitoInfoWindow extends StatelessWidget {
   final String colonia;
   final String municipio;
   final String bienAfectado;
+  final CustomInfoWindowController? controller;
 
   const DelitoInfoWindow({
     super.key,
@@ -16,6 +18,7 @@ class DelitoInfoWindow extends StatelessWidget {
     required this.colonia,
     required this.municipio,
     required this.bienAfectado,
+    this.controller,
   });
 
   @override
@@ -38,7 +41,7 @@ class DelitoInfoWindow extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
+          // Header con botón cerrar
           Container(
             padding: const EdgeInsets.all(12),
             child: Row(
@@ -58,6 +61,14 @@ class DelitoInfoWindow extends StatelessWidget {
                       color: Colors.red,
                     ),
                   ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close, color: Colors.black54, size: 20),
+                  onPressed: () {
+                    controller?.hideInfoWindow?.call();
+                  },
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
                 ),
               ],
             ),
