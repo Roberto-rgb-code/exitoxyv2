@@ -1500,7 +1500,9 @@ class _PostgisAgebInfoWindow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: 320,
-      height: 500,
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.7,
+      ),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -1514,6 +1516,7 @@ class _PostgisAgebInfoWindow extends StatelessWidget {
         border: Border.all(color: Colors.blue, width: 2),
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           // Header con botón de cerrar
           Container(
@@ -1537,6 +1540,8 @@ class _PostgisAgebInfoWindow extends StatelessWidget {
                       fontWeight: FontWeight.bold,
                       color: Colors.black87,
                     ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 IconButton(
@@ -1551,7 +1556,7 @@ class _PostgisAgebInfoWindow extends StatelessWidget {
             ),
           ),
           // Contenido scrolleable
-          Expanded(
+          Flexible(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -1702,7 +1707,7 @@ class _EstacionInfoWindow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: 280,
-      padding: const EdgeInsets.all(16),
+      constraints: const BoxConstraints(maxHeight: 300),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -1719,43 +1724,60 @@ class _EstacionInfoWindow extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(Icons.directions_bus, color: Colors.purple[700], size: 24),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  estacion.nombre ?? 'Estación',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
+          // Header fijo
+          Container(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Icon(Icons.directions_bus, color: Colors.purple[700], size: 24),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    estacion.nombre ?? 'Estación',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.close, color: Colors.black54),
-                onPressed: () {
-                  controller?.hideInfoWindow?.call();
-                },
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-              ),
-            ],
+                IconButton(
+                  icon: const Icon(Icons.close, color: Colors.black54),
+                  onPressed: () {
+                    controller?.hideInfoWindow?.call();
+                  },
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 12),
-          if (estacion.sistema != null) ...[
-            _buildInfoRow('Sistema', estacion.sistema!),
-          ],
-          if (estacion.linea != null) ...[
-            _buildInfoRow('Línea', estacion.linea!),
-          ],
-          if (estacion.estructura != null) ...[
-            _buildInfoRow('Estructura', estacion.estructura!),
-          ],
-          if (estacion.estado != null) ...[
-            _buildInfoRow('Estado', estacion.estado!),
-          ],
+          // Contenido scrolleable
+          Flexible(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (estacion.sistema != null) ...[
+                    _buildInfoRow('Sistema', estacion.sistema!),
+                  ],
+                  if (estacion.linea != null) ...[
+                    _buildInfoRow('Línea', estacion.linea!),
+                  ],
+                  if (estacion.estructura != null) ...[
+                    _buildInfoRow('Estructura', estacion.estructura!),
+                  ],
+                  if (estacion.estado != null) ...[
+                    _buildInfoRow('Estado', estacion.estado!),
+                  ],
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -1786,6 +1808,8 @@ class _EstacionInfoWindow extends StatelessWidget {
                 fontWeight: FontWeight.w600,
                 color: Colors.black87,
               ),
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],
@@ -1810,7 +1834,7 @@ class _RutaInfoWindow extends StatelessWidget {
     
     return Container(
       width: 280,
-      padding: const EdgeInsets.all(16),
+      constraints: const BoxConstraints(maxHeight: 300),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -1827,37 +1851,54 @@ class _RutaInfoWindow extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(Icons.route, color: Colors.orange[700], size: 24),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  ruta.name ?? 'Ruta de Transporte',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
+          // Header fijo
+          Container(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Icon(Icons.route, color: Colors.orange[700], size: 24),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    ruta.name ?? 'Ruta de Transporte',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.close, color: Colors.black54),
-                onPressed: () {
-                  controller?.hideInfoWindow?.call();
-                },
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-              ),
-            ],
+                IconButton(
+                  icon: const Icon(Icons.close, color: Colors.black54),
+                  onPressed: () {
+                    controller?.hideInfoWindow?.call();
+                  },
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 12),
-          if (ruta.name != null)
-            _buildInfoRow('Nombre', ruta.name!),
-          if (ruta.folderPath != null)
-            _buildInfoRow('Carpeta', ruta.folderPath!),
-          if (ruta.shapeLeng != null)
-            _buildInfoRow('Longitud', '${ruta.shapeLeng!.toStringAsFixed(2)} m'),
+          // Contenido scrolleable
+          Flexible(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (ruta.name != null)
+                    _buildInfoRow('Nombre', ruta.name!),
+                  if (ruta.folderPath != null)
+                    _buildInfoRow('Carpeta', ruta.folderPath!),
+                  if (ruta.shapeLeng != null)
+                    _buildInfoRow('Longitud', '${ruta.shapeLeng!.toStringAsFixed(2)} m'),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -1888,6 +1929,8 @@ class _RutaInfoWindow extends StatelessWidget {
                 fontWeight: FontWeight.w600,
                 color: Colors.black87,
               ),
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],
@@ -1912,7 +1955,7 @@ class _LineaInfoWindow extends StatelessWidget {
     
     return Container(
       width: 280,
-      padding: const EdgeInsets.all(16),
+      constraints: const BoxConstraints(maxHeight: 300),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -1929,37 +1972,54 @@ class _LineaInfoWindow extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(Icons.timeline, color: Colors.red[700], size: 24),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  linea.nombre ?? 'Línea de Transporte',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
+          // Header fijo
+          Container(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Icon(Icons.timeline, color: Colors.red[700], size: 24),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    linea.nombre ?? 'Línea de Transporte',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.close, color: Colors.black54),
-                onPressed: () {
-                  controller?.hideInfoWindow?.call();
-                },
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-              ),
-            ],
+                IconButton(
+                  icon: const Icon(Icons.close, color: Colors.black54),
+                  onPressed: () {
+                    controller?.hideInfoWindow?.call();
+                  },
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 12),
-          if (linea.nombre != null)
-            _buildInfoRow('Nombre', linea.nombre!),
-          if (linea.tipoCo != null)
-            _buildInfoRow('Tipo', linea.tipoCo!),
-          if (linea.estado != null)
-            _buildInfoRow('Estado', linea.estado!),
+          // Contenido scrolleable
+          Flexible(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (linea.nombre != null)
+                    _buildInfoRow('Nombre', linea.nombre!),
+                  if (linea.tipoCo != null)
+                    _buildInfoRow('Tipo', linea.tipoCo!),
+                  if (linea.estado != null)
+                    _buildInfoRow('Estado', linea.estado!),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
