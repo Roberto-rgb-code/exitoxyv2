@@ -38,25 +38,79 @@ class Config {
       dotenv.env['MYSQL_DATABASE'] ?? 'kikit';
 
   // ===========================================
-  // POSTGRESQL DATABASE CONFIGURATION (Render)
+  // POSTGRESQL DATABASE CONFIGURATION (PostGIS - Capas GIS)
   // ===========================================
-  static String get postgresHost => 
-      dotenv.env['POSTGRES_HOST'] ?? 
+  static String get postgresGisHost => 
+      dotenv.env['POSTGRES_GIS_HOST'] ?? 
+      dotenv.env['POSTGRES_HOST'] ?? // Fallback para compatibilidad
+      'dpg-d444266mcj7s73bmcar0-a.oregon-postgres.render.com';
+  
+  static int get postgresGisPort => 
+      int.tryParse(dotenv.env['POSTGRES_GIS_PORT'] ?? 
+                   dotenv.env['POSTGRES_PORT'] ?? '5432') ?? 5432;
+  
+  static String get postgresGisDatabase => 
+      dotenv.env['POSTGRES_GIS_DATABASE'] ?? 
+      dotenv.env['POSTGRES_DATABASE'] ?? // Fallback para compatibilidad
+      'gis_db_kmw5';
+  
+  static String get postgresGisUsername => 
+      dotenv.env['POSTGRES_GIS_USERNAME'] ?? 
+      dotenv.env['POSTGRES_USERNAME'] ?? // Fallback para compatibilidad
+      'gis_db_kmw5_user';
+  
+  static String get postgresGisPassword => 
+      dotenv.env['POSTGRES_GIS_PASSWORD'] ?? 
+      dotenv.env['POSTGRES_PASSWORD'] ?? // Fallback para compatibilidad
+      'giqLt0wGTmmnBBeAtzGp8ur4r0IOYc9e';
+  
+  static bool get postgresGisSslRequired => true;
+
+  // ===========================================
+  // POSTGRESQL DATABASE CONFIGURATION (Rentas)
+  // ===========================================
+  static String get postgresRentasHost => 
+      dotenv.env['POSTGRES_RENTAS_HOST'] ?? 
       'dpg-d458gn4hg0os73b9g05g-a.oregon-postgres.render.com';
   
-  static int get postgresPort => 
-      int.tryParse(dotenv.env['POSTGRES_PORT'] ?? '5432') ?? 5432;
+  static int get postgresRentasPort => 
+      int.tryParse(dotenv.env['POSTGRES_RENTAS_PORT'] ?? '5432') ?? 5432;
   
-  static String get postgresDatabase => 
-      dotenv.env['POSTGRES_DATABASE'] ?? 'db_exitoxy';
+  static String get postgresRentasDatabase => 
+      dotenv.env['POSTGRES_RENTAS_DATABASE'] ?? 
+      'db_exitoxy';
   
-  static String get postgresUsername => 
-      dotenv.env['POSTGRES_USERNAME'] ?? 'db_exitoxy_user';
+  static String get postgresRentasUsername => 
+      dotenv.env['POSTGRES_RENTAS_USERNAME'] ?? 
+      'db_exitoxy_user';
   
-  static String get postgresPassword => 
-      dotenv.env['POSTGRES_PASSWORD'] ?? '0wGKpZeGn4CrD6ixENwlP3bDZhK8aqXM';
+  static String get postgresRentasPassword => 
+      dotenv.env['POSTGRES_RENTAS_PASSWORD'] ?? 
+      '0wGKpZeGn4CrD6ixENwlP3bDZhK8aqXM';
   
-  static bool get postgresSslRequired => true;
+  static bool get postgresRentasSslRequired => true;
+
+  // ===========================================
+  // POSTGRESQL DATABASE CONFIGURATION (Legacy - Deprecated)
+  // Mantener para compatibilidad hacia atrás
+  // ===========================================
+  @Deprecated('Use postgresGisHost instead')
+  static String get postgresHost => postgresGisHost;
+  
+  @Deprecated('Use postgresGisPort instead')
+  static int get postgresPort => postgresGisPort;
+  
+  @Deprecated('Use postgresGisDatabase instead')
+  static String get postgresDatabase => postgresGisDatabase;
+  
+  @Deprecated('Use postgresGisUsername instead')
+  static String get postgresUsername => postgresGisUsername;
+  
+  @Deprecated('Use postgresGisPassword instead')
+  static String get postgresPassword => postgresGisPassword;
+  
+  @Deprecated('Use postgresGisSslRequired instead')
+  static bool get postgresSslRequired => postgresGisSslRequired;
 
   // ===========================================
   // API ENDPOINTS

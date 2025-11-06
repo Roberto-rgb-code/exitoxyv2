@@ -61,14 +61,14 @@ class RentasService {
 
     _connection = await pg.Connection.open(
       pg.Endpoint(
-        host: Config.postgresHost,
-        port: Config.postgresPort,
-        database: Config.postgresDatabase,
-        username: Config.postgresUsername,
-        password: Config.postgresPassword,
+        host: Config.postgresRentasHost,
+        port: Config.postgresRentasPort,
+        database: Config.postgresRentasDatabase,
+        username: Config.postgresRentasUsername,
+        password: Config.postgresRentasPassword,
       ),
       settings: pg.ConnectionSettings(
-        sslMode: pg.SslMode.require,
+        sslMode: Config.postgresRentasSslRequired ? pg.SslMode.require : pg.SslMode.disable,
       ),
     );
 

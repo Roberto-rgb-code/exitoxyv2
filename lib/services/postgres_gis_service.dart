@@ -13,18 +13,18 @@ class PostgresGisService {
 
     _connection = await pg.Connection.open(
       pg.Endpoint(
-        host: Config.postgresHost,
-        port: Config.postgresPort,
-        database: Config.postgresDatabase,
-        username: Config.postgresUsername,
-        password: Config.postgresPassword,
+        host: Config.postgresGisHost,
+        port: Config.postgresGisPort,
+        database: Config.postgresGisDatabase,
+        username: Config.postgresGisUsername,
+        password: Config.postgresGisPassword,
       ),
       settings: pg.ConnectionSettings(
-        sslMode: pg.SslMode.require,
+        sslMode: Config.postgresGisSslRequired ? pg.SslMode.require : pg.SslMode.disable,
       ),
     );
 
-    print('✅ Conexión a PostgreSQL establecida');
+    print('✅ Conexión a PostgreSQL (PostGIS) establecida');
     return _connection!;
   }
 
