@@ -75,6 +75,18 @@ class ExploreController extends ChangeNotifier {
     return markers;
   }
 
+  /// Agregar un marcador al mapa
+  void addMarker(MarkerId markerId, Marker marker) {
+    _markers[markerId] = marker;
+    notifyListeners();
+  }
+
+  /// Remover un marcador del mapa
+  void removeMarker(MarkerId markerId) {
+    _markers.remove(markerId);
+    notifyListeners();
+  }
+
   bool myLocationEnabled = false;
 
   String? activeCP;

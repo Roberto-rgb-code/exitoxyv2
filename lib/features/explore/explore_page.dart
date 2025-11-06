@@ -13,6 +13,7 @@ import '../../widgets/commercial_modal.dart';
 import '../../widgets/integrated_analysis_page.dart';
 import '../../widgets/map_legend_widget.dart';
 import '../../widgets/postgis_layers_widget.dart';
+import '../../widgets/rentas_widget.dart';
 
 class ExplorePage extends StatefulWidget {
   const ExplorePage({super.key});
@@ -208,6 +209,9 @@ class _ExplorePageState extends State<ExplorePage> {
               foregroundColor: Colors.white,
             ),
           ),
+
+          // Widget de Rentas (arriba del botón de capas)
+          const RentasWidget(),
 
           // Botón para mostrar capas PostGIS (cuando no hay capas activas)
           if (!exploreController.showPostgisAgebLayer && 

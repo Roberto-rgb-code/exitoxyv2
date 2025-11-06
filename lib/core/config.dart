@@ -42,19 +42,19 @@ class Config {
   // ===========================================
   static String get postgresHost => 
       dotenv.env['POSTGRES_HOST'] ?? 
-      'dpg-d444266mcj7s73bmcar0-a.oregon-postgres.render.com';
+      'dpg-d458gn4hg0os73b9g05g-a.oregon-postgres.render.com';
   
   static int get postgresPort => 
       int.tryParse(dotenv.env['POSTGRES_PORT'] ?? '5432') ?? 5432;
   
   static String get postgresDatabase => 
-      dotenv.env['POSTGRES_DATABASE'] ?? 'gis_db_kmw5';
+      dotenv.env['POSTGRES_DATABASE'] ?? 'db_exitoxy';
   
   static String get postgresUsername => 
-      dotenv.env['POSTGRES_USERNAME'] ?? 'gis_db_kmw5_user';
+      dotenv.env['POSTGRES_USERNAME'] ?? 'db_exitoxy_user';
   
   static String get postgresPassword => 
-      dotenv.env['POSTGRES_PASSWORD'] ?? 'giqLt0wGTmmnBBeAtzGp8ur4r0IOYc9e';
+      dotenv.env['POSTGRES_PASSWORD'] ?? '0wGKpZeGn4CrD6ixENwlP3bDZhK8aqXM';
   
   static bool get postgresSslRequired => true;
 
