@@ -514,6 +514,12 @@ class ExploreController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void clearDemographicOverlay() {
+    activeCP = null;
+    demographyAgg = null;
+    notifyListeners();
+  }
+
   /// Analiza la concentración del mercado para una actividad específica
   Future<void> analyzeConcentration(String activity) async {
     if (lastPoint == null || activeCP == null) {

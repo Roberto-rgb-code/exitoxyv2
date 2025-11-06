@@ -3,11 +3,13 @@ import 'package:flutter/material.dart';
 class DemographicOverlay extends StatelessWidget {
   final Map<String, int> demography;
   final String? postalCode;
+  final VoidCallback? onClose;
 
   const DemographicOverlay({
     Key? key,
     required this.demography,
     this.postalCode,
+    this.onClose,
   }) : super(key: key);
 
   @override
@@ -30,40 +32,70 @@ class DemographicOverlay extends StatelessWidget {
           ),
         ],
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
+      child: Stack(
         children: [
-          if (postalCode != null) ...[
-            Text(
-              'CP $postalCode',
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-              ),
-            ),
-            const SizedBox(height: 8),
-          ],
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              _buildDemographicItem(
-                icon: Icons.woman,
-                label: 'Femenino',
-                value: mujeres,
-              ),
-              _buildDemographicItem(
-                icon: Icons.man,
-                label: 'Masculino',
-                value: hombres,
-              ),
-              _buildDemographicItem(
-                icon: Icons.people,
-                label: 'Total',
-                value: total,
+              if (postalCode != null) ...[
+                Padding(
+                  padding: const EdgeInsets.only(top: 8.0),
+                  child: Text(
+                    'CP $postalCode',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _buildDemographicItem(
+                    icon: Icons.woman,
+                    label: 'Femenino',
+                    value: mujeres,
+                  ),
+                  _buildDemographicItem(
+                    icon: Icons.man,
+                    label: 'Masculino',
+                    value: hombres,
+                  ),
+                  _buildDemographicItem(
+                    icon: Icons.people,
+                    label: 'Total',
+                    value: total,
+                  ),
+                ],
               ),
             ],
           ),
+          if (onClose != null)
+            Positioned(
+              top: 4,
+              right: 4,
+              child: Material(
+                color: Colors.black.withOpacity(0.3),
+                shape: const CircleBorder(),
+                child: IconButton(
+                  icon: const Icon(
+                    Icons.close,
+                    color: Colors.white,
+                    size: 20,
+                  ),
+                  onPressed: onClose,
+                  padding: const EdgeInsets.all(4),
+                  constraints: const BoxConstraints(
+                    minWidth: 28,
+                    minHeight: 28,
+                  ),
+                  tooltip: 'Cerrar',
+                ),
+              ),
+            ),
         ],
       ),
     );

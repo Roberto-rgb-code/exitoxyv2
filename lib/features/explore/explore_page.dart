@@ -166,6 +166,9 @@ class _ExplorePageState extends State<ExplorePage> {
               child: DemographicOverlay(
                 demography: exploreController.demographyAgg!,
                 postalCode: exploreController.activeCP,
+                onClose: () {
+                  exploreController.clearDemographicOverlay();
+                },
               ),
             ),
           
