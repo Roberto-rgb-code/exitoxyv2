@@ -248,11 +248,14 @@ class _AnalisisMercadoWidgetState extends State<AnalisisMercadoWidget> {
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: Text(
-                        '${entry.key} (${entry.value.length} actividades)',
-                        style: GoogleFonts.poppins(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
+                      child: InkWell(
+                        onTap: () => _showStructureDetailModal(context, entry.key, entry.value),
+                        child: Text(
+                          '${entry.key} (${entry.value.length} actividades)',
+                          style: GoogleFonts.poppins(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
                       ),
                     ),
@@ -292,12 +295,14 @@ class _AnalisisMercadoWidgetState extends State<AnalisisMercadoWidget> {
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
               value: _selectedActivity,
+              isExpanded: true,
               decoration: InputDecoration(
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
                 filled: true,
                 fillColor: Colors.grey[100],
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
               ),
               items: allActivities.map((activity) {
                 return DropdownMenuItem(
@@ -309,6 +314,18 @@ class _AnalisisMercadoWidgetState extends State<AnalisisMercadoWidget> {
                   ),
                 );
               }).toList(),
+              selectedItemBuilder: (context) {
+                return allActivities.map((activity) {
+                  return Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      activity,
+                      style: GoogleFonts.poppins(fontSize: 14),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  );
+                }).toList();
+              },
               onChanged: (value) {
                 if (value != null) _analyzeActivity(value);
               },
@@ -402,35 +419,39 @@ class _AnalisisMercadoWidgetState extends State<AnalisisMercadoWidget> {
   }
 
   Widget _buildMetricCard(String label, String value, IconData icon, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, color: color, size: 24),
-          const SizedBox(height: 8),
-          Text(
-            value,
-            style: GoogleFonts.poppins(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: color,
+    return InkWell(
+      onTap: () => _showMetricDetailModal(context, label, value, icon, color),
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withOpacity(0.3)),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 24),
+            const SizedBox(height: 8),
+            Text(
+              value,
+              style: GoogleFonts.poppins(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
             ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: GoogleFonts.poppins(
-              fontSize: 11,
-              color: Colors.grey[700],
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: GoogleFonts.poppins(
+                fontSize: 11,
+                color: Colors.grey[700],
+              ),
+              textAlign: TextAlign.center,
             ),
-            textAlign: TextAlign.center,
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -722,6 +743,293 @@ class _AnalisisMercadoWidgetState extends State<AnalisisMercadoWidget> {
       default:
         return Colors.grey;
     }
+  }
+
+  void _showStructureDetailModal(BuildContext context, String structure, List<String> activities) {
+    final color = _getStructureColor(structure);
+    
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.8,
+        ),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              margin: const EdgeInsets.only(top: 12),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 16,
+                        height: 16,
+                        decoration: BoxDecoration(
+                          color: color,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          structure,
+                          style: GoogleFonts.poppins(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '${activities.length} actividades económicas',
+                    style: GoogleFonts.poppins(
+                      fontSize: 14,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    'Actividades:',
+                    style: GoogleFonts.poppins(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Flexible(
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: activities.length,
+                      itemBuilder: (context, index) {
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: InkWell(
+                            onTap: () {
+                              Navigator.pop(context);
+                              _analyzeActivity(activities[index]);
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.grey[50],
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: Colors.grey[200]!),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.business, color: color, size: 20),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Text(
+                                      activities[index],
+                                      style: GoogleFonts.poppins(fontSize: 14),
+                                    ),
+                                  ),
+                                  Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey[400]),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showMetricDetailModal(BuildContext context, String label, String value, IconData icon, Color color) {
+    if (_selectedAnalysis == null) return;
+
+    final analysis = _selectedAnalysis!;
+    String description = '';
+    Map<String, String> additionalInfo = {};
+
+    switch (label) {
+      case 'Número de Empresas':
+        description = 'Cantidad total de empresas que operan en esta actividad económica en el área analizada.';
+        additionalInfo = {
+          'Actividad': analysis.actividad,
+          'Empresas únicas': '${analysis.nFirms}',
+        };
+        break;
+      case 'HHI':
+        description = 'Índice Herfindahl-Hirschman (HHI) mide la concentración del mercado. Valores más altos indican mayor concentración.';
+        additionalInfo = {
+          'Valor HHI': analysis.hhi.toStringAsFixed(2),
+          'Interpretación': _getHHIInterpretation(analysis.hhi),
+        };
+        break;
+      case 'CR4':
+        description = 'Ratio de concentración de las 4 empresas más grandes. Mide qué porcentaje del mercado controlan las 4 principales empresas.';
+        additionalInfo = {
+          'CR4': '${(analysis.cr4 * 100).toStringAsFixed(1)}%',
+          'Interpretación': _getCR4Interpretation(analysis.cr4),
+        };
+        break;
+      case 'Estructura':
+        description = 'Tipo de estructura de mercado determinada por los índices HHI y CR4.';
+        additionalInfo = {
+          'Estructura': analysis.structure,
+          'HHI': analysis.hhi.toStringAsFixed(2),
+          'CR4': '${(analysis.cr4 * 100).toStringAsFixed(1)}%',
+        };
+        break;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                margin: const EdgeInsets.only(bottom: 20),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: color.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(icon, color: color, size: 32),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          label,
+                          style: GoogleFonts.poppins(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          value,
+                          style: GoogleFonts.poppins(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: color,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'Descripción',
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                description,
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  color: Colors.grey[700],
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'Información Adicional',
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 12),
+              ...additionalInfo.entries.map((entry) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        entry.key,
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                      Text(
+                        entry.value,
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+              const SizedBox(height: 20),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _getHHIInterpretation(double hhi) {
+    if (hhi > 7500) return 'Muy alta concentración (Monopolio)';
+    if (hhi > 2500) return 'Alta concentración (Oligopolio)';
+    if (hhi > 1500) return 'Concentración moderada (Competencia Monopolística)';
+    return 'Baja concentración (Competencia Perfecta)';
+  }
+
+  String _getCR4Interpretation(double cr4) {
+    if (cr4 > 0.9) return 'Muy alta concentración';
+    if (cr4 > 0.6) return 'Alta concentración';
+    if (cr4 > 0.4) return 'Concentración moderada';
+    return 'Baja concentración';
   }
 }
 

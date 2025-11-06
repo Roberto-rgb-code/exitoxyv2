@@ -344,11 +344,14 @@ class _MercadoElasticidadWidgetState extends State<MercadoElasticidadWidget> {
               children: [
                 Icon(Icons.swap_horiz, color: Colors.purple[700], size: 24),
                 const SizedBox(width: 12),
-                Text(
-                  'Elasticidad Cruzada (Sustitutos)',
-                  style: GoogleFonts.poppins(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                Expanded(
+                  child: Text(
+                    'Elasticidad Cruzada (Sustitutos)',
+                    style: GoogleFonts.poppins(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
@@ -363,49 +366,53 @@ class _MercadoElasticidadWidgetState extends State<MercadoElasticidadWidget> {
                   return Card(
                     margin: const EdgeInsets.only(bottom: 8),
                     color: Colors.purple[50],
-                    child: ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: Colors.purple[700],
-                        child: Text(
-                          'E${index + 1}',
-                          style: GoogleFonts.poppins(
-                            color: Colors.white,
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                      title: Text(
-                        '${_truncateText(result.activity1, 20)} ↔ ${_truncateText(result.activity2, 20)}',
-                        style: GoogleFonts.poppins(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      subtitle: Text(
-                        'Distancia: ${result.distance.toStringAsFixed(2)} km',
-                        style: GoogleFonts.poppins(fontSize: 11),
-                      ),
-                      trailing: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            'E = ${result.elasticity.toStringAsFixed(3)}',
+                    child: InkWell(
+                      onTap: () => _showCrossElasticityDetailModal(context, result, index + 1),
+                      borderRadius: BorderRadius.circular(8),
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: Colors.purple[700],
+                          child: Text(
+                            'E${index + 1}',
                             style: GoogleFonts.poppins(
-                              fontSize: 14,
+                              color: Colors.white,
+                              fontSize: 12,
                               fontWeight: FontWeight.bold,
-                              color: Colors.purple[700],
                             ),
                           ),
-                          Text(
-                            '${(result.substitutionIndex * 100).toStringAsFixed(0)}%',
-                            style: GoogleFonts.poppins(
-                              fontSize: 10,
-                              color: Colors.grey[600],
-                            ),
+                        ),
+                        title: Text(
+                          '${_truncateText(result.activity1, 20)} ↔ ${_truncateText(result.activity2, 20)}',
+                          style: GoogleFonts.poppins(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
                           ),
-                        ],
+                        ),
+                        subtitle: Text(
+                          'Distancia: ${result.distance.toStringAsFixed(2)} km',
+                          style: GoogleFonts.poppins(fontSize: 11),
+                        ),
+                        trailing: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              'E = ${result.elasticity.toStringAsFixed(3)}',
+                              style: GoogleFonts.poppins(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.purple[700],
+                              ),
+                            ),
+                            Text(
+                              '${(result.substitutionIndex * 100).toStringAsFixed(0)}%',
+                              style: GoogleFonts.poppins(
+                                fontSize: 10,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   );
@@ -590,6 +597,226 @@ class _MercadoElasticidadWidgetState extends State<MercadoElasticidadWidget> {
     if (elasticity > 1.0) return 'Lujo';
     if (elasticity > 0) return 'Necesario';
     return 'Inferior';
+  }
+
+  void _showCrossElasticityDetailModal(BuildContext context, CrossElasticityResult result, int index) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.7,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        builder: (context, scrollController) => Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: SingleChildScrollView(
+            controller: scrollController,
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  margin: const EdgeInsets.only(bottom: 20),
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                Row(
+                  children: [
+                    CircleAvatar(
+                      backgroundColor: Colors.purple[700],
+                      radius: 24,
+                      child: Text(
+                        'E$index',
+                        style: GoogleFonts.poppins(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Elasticidad Cruzada',
+                            style: GoogleFonts.poppins(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Bienes Sustitutos',
+                            style: GoogleFonts.poppins(
+                              fontSize: 14,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.purple[50],
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.purple[200]!),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.swap_horiz, color: Colors.purple[700], size: 20),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Par de Actividades',
+                            style: GoogleFonts.poppins(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      _buildActivityRow('Actividad 1', result.activity1),
+                      const SizedBox(height: 8),
+                      Icon(Icons.arrow_downward, color: Colors.purple[400], size: 20),
+                      const SizedBox(height: 8),
+                      _buildActivityRow('Actividad 2', result.activity2),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _buildDetailItem('Elasticidad', 'E = ${result.elasticity.toStringAsFixed(3)}'),
+                    _buildDetailItem('Distancia', '${result.distance.toStringAsFixed(2)} km'),
+                    _buildDetailItem('Índice Sustitución', '${(result.substitutionIndex * 100).toStringAsFixed(0)}%'),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.blue[50],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Interpretación',
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        _getCrossElasticityInterpretation(result.elasticity),
+                        style: GoogleFonts.poppins(
+                          fontSize: 12,
+                          color: Colors.grey[700],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActivityRow(String label, String activity) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey[300]!),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.business, color: Colors.purple[700], size: 18),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: GoogleFonts.poppins(
+                    fontSize: 11,
+                    color: Colors.grey[600],
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  activity,
+                  style: GoogleFonts.poppins(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDetailItem(String label, String value) {
+    return Column(
+      children: [
+        Text(
+          label,
+          style: GoogleFonts.poppins(
+            fontSize: 11,
+            color: Colors.grey[600],
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: GoogleFonts.poppins(
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            color: Colors.purple[700],
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _getCrossElasticityInterpretation(double elasticity) {
+    if (elasticity > 0.5) {
+      return 'Alta elasticidad cruzada: Estas actividades son fuertes sustitutos. Un cambio en el precio de una afecta significativamente la demanda de la otra.';
+    } else if (elasticity > 0.2) {
+      return 'Moderada elasticidad cruzada: Estas actividades son sustitutos moderados. Existe cierta relación entre sus demandas.';
+    } else {
+      return 'Baja elasticidad cruzada: Estas actividades tienen poca relación como sustitutos. Sus demandas son relativamente independientes.';
+    }
   }
 }
 

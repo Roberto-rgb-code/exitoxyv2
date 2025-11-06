@@ -59,12 +59,13 @@ class _ActivityPromptState extends State<ActivityPrompt> {
 
     final controller = context.read<ExploreController>();
     
-    if (controller.lastPoint == null) {
+    if (controller.lastPoint == null || controller.activeCP == null) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Por favor selecciona una ubicación primero'),
+            content: Text('Por favor selecciona una zona primero (tap en el mapa o busca una dirección)'),
             backgroundColor: Colors.orange,
+            duration: Duration(seconds: 4),
           ),
         );
       }
