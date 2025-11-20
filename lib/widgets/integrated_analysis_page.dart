@@ -16,6 +16,7 @@ import 'marketplace_listings_widget.dart';
 import 'transporte_widget.dart';
 import 'analisis_mercado_widget.dart';
 import 'mercado_elasticidad_widget.dart';
+import 'propiedades_list_widget.dart';
 
 class IntegratedAnalysisPage extends StatefulWidget {
   final double latitude;
@@ -49,7 +50,7 @@ class _IntegratedAnalysisPageState extends State<IntegratedAnalysisPage>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 8, vsync: this);
+    _tabController = TabController(length: 9, vsync: this);
     _loadAllDataAsync();
   }
 
@@ -108,6 +109,7 @@ class _IntegratedAnalysisPageState extends State<IntegratedAnalysisPage>
             Tab(icon: Icon(Icons.analytics, size: 18), text: 'Análisis'),
             Tab(icon: Icon(Icons.trending_up, size: 18), text: 'Mercado'),
             Tab(icon: Icon(Icons.directions_bus, size: 18), text: 'Transporte'),
+            Tab(icon: Icon(Icons.home, size: 18), text: 'Rentas'),
             Tab(icon: Icon(Icons.lightbulb, size: 18), text: 'Recomendaciones'),
             Tab(icon: Icon(Icons.view_in_ar, size: 18), text: '3D'),
           ],
@@ -135,6 +137,10 @@ class _IntegratedAnalysisPageState extends State<IntegratedAnalysisPage>
              longitude: widget.longitude,
            ),
            TransporteWidget(
+             latitude: widget.latitude,
+             longitude: widget.longitude,
+           ),
+           PropiedadesListWidget(
              latitude: widget.latitude,
              longitude: widget.longitude,
            ),

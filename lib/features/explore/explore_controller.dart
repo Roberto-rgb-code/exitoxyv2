@@ -647,6 +647,7 @@ class ExploreController extends ChangeNotifier {
   Future<void> showDenueMarkers(String activity) async {
     print('🔍 showDenueMarkers llamado con actividad: "$activity"');
     print('📍 lastPoint: $lastPoint');
+    print('📍 activeCP: $activeCP');
     
     if (lastPoint == null) {
       print('⚠️ No hay ubicación para mostrar marcadores DENUE');
@@ -657,6 +658,7 @@ class ExploreController extends ChangeNotifier {
 
     try {
       print('🔍 Cargando marcadores DENUE para: "$activity"');
+      print('📍 Coordenadas: lat=${lastPoint!.latitude}, lon=${lastPoint!.longitude}');
       
       final entries = await DenueRepository.fetchEntries(
         activity: activity,
@@ -673,40 +675,60 @@ class ExploreController extends ChangeNotifier {
         return;
       }
 
-             // Limpiar marcadores DENUE existentes
-       _markers.removeWhere((key, marker) => key.value.startsWith('denue_'));
+      // Limpiar marcadores DENUE existentes
+      final removedCount = _markers.keys.where((key) => key.value.startsWith('denue_')).length;
+      _markers.removeWhere((key, marker) => key.value.startsWith('denue_'));
+      print('🧹 Marcadores DENUE anteriores eliminados: $removedCount');
 
-       // Color azul fijo para Actividades Económicas
-       double markerHue = BitmapDescriptor.hueBlue;
-       print('🎨 Color de marcadores DENUE: Azul (fijo)');
+      // Color azul fijo para Actividades Económicas
+      double markerHue = BitmapDescriptor.hueBlue;
+      print('🎨 Color de marcadores DENUE: Azul (fijo)');
 
       // Crear marcadores
       print('🎨 Creando ${entries.length} marcadores DENUE...');
+      int createdCount = 0;
       for (int i = 0; i < entries.length; i++) {
-        final entry = entries[i];
-        final markerId = MarkerId('denue_$i');
-        
-        if (i < 3) { // Debug primeros 3 marcadores
-          print('📍 Marcador $i: ${entry.name} en ${entry.position}');
-        }
-        
-        final marker = Marker(
-          markerId: markerId,
-          position: entry.position,
-          icon: BitmapDescriptor.defaultMarkerWithHue(markerHue),
-          infoWindow: InfoWindow(
-            title: '🏢 ${entry.name}',
-            snippet: '📍 ${entry.activity} • Tap para más información',
-          ),
-          onTap: () => _showDenueInfoWindow(entry),
-        );
+        try {
+          final entry = entries[i];
+          final markerId = MarkerId('denue_${activity}_$i');
+          
+          if (i < 3) { // Debug primeros 3 marcadores
+            print('📍 Marcador $i: ${entry.name} en ${entry.position}');
+          }
+          
+          // Usar el nombre real del negocio (limpiar si es genérico)
+          String displayName = entry.name.trim();
+          // Detectar nombres genéricos como "abarrotes 1", "abarrotes 2", etc.
+          final isGeneric = displayName.toLowerCase().startsWith(activity.toLowerCase()) && 
+              RegExp(r'\s+\d+$').hasMatch(displayName);
+          
+          // Si es genérico, mostrar la actividad económica con formato mejorado
+          if (isGeneric || displayName.isEmpty) {
+            displayName = entry.activity.isNotEmpty 
+                ? entry.activity 
+                : 'Negocio';
+          }
+          
+          final marker = Marker(
+            markerId: markerId,
+            position: entry.position,
+            icon: BitmapDescriptor.defaultMarkerWithHue(markerHue),
+            infoWindow: InfoWindow(
+              title: '🏢 ${displayName.isNotEmpty ? displayName : entry.activity}',
+              snippet: '📍 ${entry.activity} • Tap para más información',
+            ),
+            onTap: () => _showDenueInfoWindow(entry),
+          );
 
-        _markers[markerId] = marker;
+          _markers[markerId] = marker;
+          createdCount++;
+        } catch (e) {
+          print('⚠️ Error creando marcador $i: $e');
+          // Continuar con el siguiente marcador
+        }
       }
       
-      print('🎯 MARCADORES DENUE AGREGADOS AL MAPA: ${_markers.length}');
-
-      print('✅ DENUE: ${entries.length} marcadores agregados al mapa');
+      print('🎯 MARCADORES DENUE CREADOS: $createdCount de ${entries.length}');
       print('📊 Total de marcadores en el mapa: ${_markers.length}');
       print('📊 Marcadores DENUE: ${_markers.keys.where((key) => key.value.startsWith('denue_')).length}');
       
@@ -718,10 +740,13 @@ class ExploreController extends ChangeNotifier {
         }
       }
       
+      print('🔄 Notificando listeners...');
       notifyListeners();
-    } catch (e) {
+      print('✅ DENUE: $createdCount marcadores agregados y notificados');
+    } catch (e, stackTrace) {
       print('❌ Error mostrando marcadores DENUE: $e');
-      rethrow;
+      print('📚 Stack trace: $stackTrace');
+      // No rethrow para que no interrumpa el flujo, pero loguear el error
     }
   }
 

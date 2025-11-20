@@ -108,6 +108,13 @@ coverage/
 build/
 **/build/
 
+# Backend Node.js
+backend/node_modules/
+backend/.env
+backend/npm-debug.log*
+backend/yarn-debug.log*
+backend/yarn-error.log*
+
 # Test coverage
 coverage/
 

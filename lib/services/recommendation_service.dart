@@ -5,12 +5,14 @@ import 'delitos_service.dart';
 import 'google_places_service.dart';
 import 'search_history_service.dart';
 import 'postgres_gis_service.dart';
+import 'rentas_service.dart';
 
 class RecommendationService {
   final DelitosService _delitosService = DelitosService();
   final GooglePlacesService _placesService = GooglePlacesService();
   final SearchHistoryService _searchService = SearchHistoryService();
   final PostgresGisService _postgisService = PostgresGisService();
+  final RentasService _rentasService = RentasService();
 
   /// Generar recomendaciones de ubicaciones para renta
   Future<List<Recommendation>> generateRecommendations({
@@ -39,6 +41,27 @@ class RecommendationService {
         latitude: latitude,
         longitude: longitude,
       );
+
+      // Obtener propiedades disponibles en el área
+      List<dynamic> propiedadesCercanas = [];
+      int propiedadesCount = 0;
+      try {
+        final propiedades = await _rentasService.getRentasInBounds(
+          minLat: latitude - 0.01, // ~1km
+          minLng: longitude - 0.01,
+          maxLat: latitude + 0.01,
+          maxLng: longitude + 0.01,
+        );
+        propiedadesCount = propiedades.length;
+        propiedadesCercanas = propiedades.take(5).map((p) => {
+          'nombre': p.nombre ?? 'Propiedad',
+          'tipo': p.tipoVivienda,
+          'superficie': p.superficieM2,
+          'cuartos': p.numCuartos,
+        }).toList();
+      } catch (e) {
+        print('⚠️ Error obteniendo propiedades para recomendaciones: $e');
+      }
 
       // Calcular score de seguridad
       final safetyScore = _calculateSafetyScore(delitos);
@@ -75,6 +98,7 @@ class RecommendationService {
           servicesScore: servicesScore,
           transportScore: transportScore,
           crimeCount: delitos.length,
+          propiedadesCount: propiedadesCount,
         ).join('\n'),
         type: 'location',
         title: locationName,
@@ -83,6 +107,7 @@ class RecommendationService {
           'Servicios: ${servicesScore.toStringAsFixed(1)}/100',
           'Transporte: ${transportScore.toStringAsFixed(1)}/100',
           'Delitos en el área: ${delitos.length}',
+          'Propiedades disponibles: $propiedadesCount',
           if (postgisTransportData != null) ...[
             'Estaciones: ${postgisTransportData['estaciones']}',
             'Rutas: ${postgisTransportData['rutas']}',
@@ -282,6 +307,7 @@ class RecommendationService {
     required double servicesScore,
     required double transportScore,
     required int crimeCount,
+    int propiedadesCount = 0,
   }) {
     final List<String> recommendations = [];
     
@@ -325,6 +351,20 @@ class RecommendationService {
       recommendations.add('👍 Buena ubicación con algunas consideraciones.');
     } else {
       recommendations.add('⚠️ Revisa cuidadosamente antes de decidir.');
+    }
+    
+    // Agregar información de propiedades disponibles
+    if (propiedadesCount > 0) {
+      if (propiedadesCount >= 10) {
+        recommendations.add('🏠 Excelente disponibilidad: $propiedadesCount propiedades en el área.');
+      } else if (propiedadesCount >= 5) {
+        recommendations.add('🏠 Buena disponibilidad: $propiedadesCount propiedades en el área.');
+      } else {
+        recommendations.add('🏠 Disponibilidad limitada: $propiedadesCount propiedades en el área.');
+      }
+      recommendations.add('💡 Revisa la pestaña "Rentas" para ver las propiedades disponibles.');
+    } else {
+      recommendations.add('🏠 No se encontraron propiedades disponibles en esta área.');
     }
     
     return recommendations;

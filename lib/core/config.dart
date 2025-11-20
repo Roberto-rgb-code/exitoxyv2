@@ -20,22 +20,22 @@ class Config {
       'your_google_maps_api_key_here';
 
   // ===========================================
-  // DATABASE CONFIGURATION
+  // DATABASE CONFIGURATION (MySQL - Servidor Remoto)
   // ===========================================
   static String get mysqlHost => 
-      dotenv.env['MYSQL_HOST'] ?? '10.0.2.2';
+      dotenv.env['MYSQL_HOST'] ?? '132.148.179.75';
 
   static int get mysqlPort => 
       int.tryParse(dotenv.env['MYSQL_PORT'] ?? '3306') ?? 3306;
 
   static String get mysqlUsername => 
-      dotenv.env['MYSQL_USERNAME'] ?? 'root';
+      dotenv.env['MYSQL_USERNAME'] ?? 'dbUserExitoXY';
 
   static String get mysqlPassword => 
-      dotenv.env['MYSQL_PASSWORD'] ?? 'kevin';
+      dotenv.env['MYSQL_PASSWORD'] ?? 'YjE_[AipL}.f';
 
   static String get mysqlDatabase => 
-      dotenv.env['MYSQL_DATABASE'] ?? 'kikit';
+      dotenv.env['MYSQL_DATABASE'] ?? 'dbExitoXY';
 
   // ===========================================
   // POSTGRESQL DATABASE CONFIGURATION (PostGIS - Capas GIS)
@@ -116,7 +116,8 @@ class Config {
   // API ENDPOINTS
   // ===========================================
   static String get apiBaseUrl => 
-      dotenv.env['API_BASE_URL'] ?? 'http://10.0.2.2:3001';
+      dotenv.env['API_BASE_URL'] ?? 
+      'https://monorepo-kikit.onrender.com'; // API Backend en Render
 
   static String get visorUrbanoApiUrl => 
       dotenv.env['VISOR_URBANO_API_URL'] ?? 

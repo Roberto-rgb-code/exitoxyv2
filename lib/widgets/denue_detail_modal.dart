@@ -114,7 +114,11 @@ class DenueDetailModal extends StatelessWidget {
                   _buildInfoSection(
                     title: 'Ubicación',
                     children: [
-                      _buildInfoRow('Coordenadas', '${entry.position.latitude}, ${entry.position.longitude}'),
+                      if (entry.direccion != null && entry.direccion!.isNotEmpty)
+                        _buildInfoRow('Dirección', entry.direccion!),
+                      if (entry.municipio != null || entry.estado != null)
+                        _buildInfoRow('Ubicación', '${entry.municipio ?? ''}${entry.municipio != null && entry.estado != null ? ', ' : ''}${entry.estado ?? ''}'),
+                      _buildInfoRow('Coordenadas', '${entry.position.latitude.toStringAsFixed(6)}, ${entry.position.longitude.toStringAsFixed(6)}'),
                       _buildInfoRow('Código postal', entry.postalCode ?? 'No disponible'),
                     ],
                   ),

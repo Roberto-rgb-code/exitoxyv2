@@ -1,267 +1,180 @@
-import 'package:postgres/postgres.dart' as pg;
 import '../core/config.dart';
+import 'postgres_gis_service.dart';
 
-/// Modelo de datos de renta
+/// Modelo de datos de propiedad (ahora desde tabla propiedades de DB GIS)
 class RentaData {
-  final int id;
-  final String? tipoVivienda;
+  final Map<String, dynamic> data; // Todos los datos de la tabla
   final double latitude;
   final double longitude;
-  final String? nombre;
-  final String? descripcion;
-  final double? superficieM2;
-  final int? numCuartos;
-  final int? numBanos;
-  final int? numCajones;
-  final String? extras;
-  final String? codigoPostal;
 
   RentaData({
-    required this.id,
-    this.tipoVivienda,
+    required this.data,
     required this.latitude,
     required this.longitude,
-    this.nombre,
-    this.descripcion,
-    this.superficieM2,
-    this.numCuartos,
-    this.numBanos,
-    this.numCajones,
-    this.extras,
-    this.codigoPostal,
   });
+
+  // Getters para compatibilidad con código existente
+  int get id => data['id'] ?? data['gid'] ?? data['iddato'] ?? 0;
+  String? get tipoVivienda => data['tipo_vivienda']?.toString() ?? data['tipo']?.toString();
+  String? get nombre => data['nombre']?.toString() ?? data['titulo']?.toString() ?? data['descripcion']?.toString();
+  String? get descripcion => data['descripcion']?.toString() ?? data['detalles']?.toString();
+  double? get superficieM2 {
+    final val = data['superficie_m2'] ?? data['superficie'] ?? data['m2'];
+    if (val == null) return null;
+    if (val is num) return val.toDouble();
+    if (val is String) return double.tryParse(val);
+    return null;
+  }
+  int? get numCuartos {
+    final val = data['num_cuartos'] ?? data['cuartos'] ?? data['habitaciones'];
+    if (val == null) return null;
+    if (val is int) return val;
+    if (val is num) return val.toInt();
+    if (val is String) return int.tryParse(val);
+    return null;
+  }
+  int? get numBanos {
+    final val = data['num_banos'] ?? data['num_ba¤os'] ?? data['banos'];
+    if (val == null) return null;
+    if (val is int) return val;
+    if (val is num) return val.toInt();
+    if (val is String) return int.tryParse(val);
+    return null;
+  }
+  int? get numCajones {
+    final val = data['num_cajones'] ?? data['cajones'] ?? data['estacionamiento'];
+    if (val == null) return null;
+    if (val is int) return val;
+    if (val is num) return val.toInt();
+    if (val is String) return int.tryParse(val);
+    return null;
+  }
+  String? get extras => data['extras']?.toString() ?? data['caracteristicas']?.toString();
+  String? get codigoPostal => data['codigopostal']?.toString() ?? data['cp']?.toString() ?? data['codigo_postal']?.toString();
 
   Map<String, dynamic> toMap() {
     return {
-      'id': id,
-      'tipo_vivienda': tipoVivienda,
+      ...data,
       'latitude': latitude,
       'longitude': longitude,
-      'nombre': nombre,
-      'descripcion': descripcion,
-      'superficie_m2': superficieM2,
-      'num_cuartos': numCuartos,
-      'num_banos': numBanos,
-      'num_cajones': numCajones,
-      'extras': extras,
-      'codigo_postal': codigoPostal,
     };
   }
 }
 
-/// Servicio para obtener datos de rentas desde PostgreSQL
+/// Servicio para obtener datos de propiedades desde PostgreSQL GIS
 class RentasService {
-  pg.Connection? _connection;
-
-  /// Obtener conexión a la base de datos
-  Future<pg.Connection> getConnection() async {
-    if (_connection != null) {
-      return _connection!;
-    }
-
-    _connection = await pg.Connection.open(
-      pg.Endpoint(
-        host: Config.postgresRentasHost,
-        port: Config.postgresRentasPort,
-        database: Config.postgresRentasDatabase,
-        username: Config.postgresRentasUsername,
-        password: Config.postgresRentasPassword,
-      ),
-      settings: pg.ConnectionSettings(
-        sslMode: Config.postgresRentasSslRequired ? pg.SslMode.require : pg.SslMode.disable,
-      ),
-    );
-
-    print('✅ Conexión a PostgreSQL (Rentas) establecida');
-    return _connection!;
-  }
+  final PostgresGisService _gisService = PostgresGisService();
 
   /// Cerrar conexión
   Future<void> close() async {
-    if (_connection != null) {
-      await _connection!.close();
-      _connection = null;
-      print('🔒 Conexión PostgreSQL (Rentas) cerrada');
-    }
+    await _gisService.close();
+    print('🔒 Conexión PostgreSQL (Propiedades) cerrada');
   }
 
-  /// Obtener todas las rentas con coordenadas válidas
+  /// Obtener todas las propiedades con coordenadas válidas
   Future<List<RentaData>> getAllRentas() async {
-    final conn = await getConnection();
-
     try {
-      print('🔍 Ejecutando consulta para obtener rentas...');
-      final result = await conn.execute('''
-        SELECT 
-          iddato,
-          tipo_vivienda,
-          ST_Y(coordenadas::geometry) as latitude,
-          ST_X(coordenadas::geometry) as longitude,
-          nombre,
-          descripcion,
-          superficie_m2,
-          num_cuartos,
-          "num_ba¤os",
-          num_cajones,
-          extras,
-          codigopostal
-        FROM comercios
-        WHERE coordenadas IS NOT NULL;
-      ''');
-
-      print('📊 Filas obtenidas de la consulta: ${result.length}');
+      print('🔍 Obteniendo propiedades desde tabla "propiedades" de DB GIS...');
+      final propiedades = await _gisService.getAllPropiedades();
+      
+      print('📊 Propiedades obtenidas: ${propiedades.length}');
       final rentas = <RentaData>[];
 
-      for (var i = 0; i < result.length; i++) {
-        final row = result[i];
+      for (var i = 0; i < propiedades.length; i++) {
+        final prop = propiedades[i];
         try {
-          print('📝 Procesando fila $i: iddato=${row[0]}, nombre=${row[4]}');
-          
-          final lat = (row[2] as num?)?.toDouble();
-          final lng = (row[3] as num?)?.toDouble();
-
-          print('   Coordenadas: lat=$lat, lng=$lng');
+          final lat = prop['latitude'];
+          final lng = prop['longitude'];
 
           if (lat != null && lng != null) {
-            // Función helper para convertir valores a numéricos de forma segura
-            double? parseDouble(dynamic value) {
-              if (value == null) return null;
-              if (value is num) return value.toDouble();
-              if (value is String) {
-                final parsed = double.tryParse(value);
-                return parsed;
-              }
-              return null;
-            }
+            final latDouble = lat is num ? lat.toDouble() : (lat is String ? double.tryParse(lat) : null);
+            final lngDouble = lng is num ? lng.toDouble() : (lng is String ? double.tryParse(lng) : null);
 
-            int? parseInt(dynamic value) {
-              if (value == null) return null;
-              if (value is int) return value;
-              if (value is num) return value.toInt();
-              if (value is String) {
-                final parsed = int.tryParse(value);
-                return parsed;
-              }
-              return null;
-            }
+            if (latDouble != null && lngDouble != null) {
+              // Remover campos calculados del mapa de datos
+              final data = Map<String, dynamic>.from(prop);
+              data.remove('latitude');
+              data.remove('longitude');
+              data.remove('geom_json');
 
-            final renta = RentaData(
-              id: row[0] as int,
-              tipoVivienda: row[1]?.toString(),
-              latitude: lat,
-              longitude: lng,
-              nombre: row[4]?.toString(),
-              descripcion: row[5]?.toString(),
-              superficieM2: parseDouble(row[6]),
-              numCuartos: parseInt(row[7]),
-              numBanos: parseInt(row[8]),
-              numCajones: parseInt(row[9]),
-              extras: row[10]?.toString(),
-              codigoPostal: row[11]?.toString(),
-            );
-            rentas.add(renta);
-            print('   ✅ Renta agregada: ${renta.nombre} (${renta.latitude}, ${renta.longitude})');
+              final renta = RentaData(
+                data: data,
+                latitude: latDouble,
+                longitude: lngDouble,
+              );
+              rentas.add(renta);
+              
+              if (i < 3) {
+                print('   ✅ Propiedad ${i + 1}: ${renta.nombre ?? 'Sin nombre'} (${renta.latitude}, ${renta.longitude})');
+              }
+            } else {
+              print('   ⚠️ Coordenadas inválidas para propiedad $i');
+            }
           } else {
-            print('   ⚠️ Coordenadas nulas o inválidas para fila $i');
+            print('   ⚠️ Coordenadas nulas para propiedad $i');
           }
         } catch (e, stackTrace) {
-          print('⚠️ Error procesando registro de renta $i: $e');
+          print('⚠️ Error procesando propiedad $i: $e');
           print('   Stack trace: $stackTrace');
         }
       }
 
-      print('✅ Total de ${rentas.length} rentas obtenidas y procesadas');
+      print('✅ Total de ${rentas.length} propiedades procesadas');
       return rentas;
     } catch (e, stackTrace) {
-      print('❌ Error obteniendo rentas: $e');
+      print('❌ Error obteniendo propiedades: $e');
       print('   Stack trace: $stackTrace');
       rethrow;
     }
   }
 
-  /// Obtener rentas dentro de un área específica
+  /// Obtener propiedades dentro de un área específica
   Future<List<RentaData>> getRentasInBounds({
     required double minLat,
     required double minLng,
     required double maxLat,
     required double maxLng,
   }) async {
-    final conn = await getConnection();
-
     try {
-      final result = await conn.execute('''
-        SELECT 
-          iddato,
-          tipo_vivienda,
-          ST_Y(coordenadas::geometry) as latitude,
-          ST_X(coordenadas::geometry) as longitude,
-          nombre,
-          descripcion,
-          superficie_m2,
-          num_cuartos,
-          "num_ba¤os",
-          num_cajones,
-          extras,
-          codigopostal
-        FROM comercios
-        WHERE coordenadas IS NOT NULL
-        AND ST_Y(coordenadas::geometry) BETWEEN \$1 AND \$2
-        AND ST_X(coordenadas::geometry) BETWEEN \$3 AND \$4;
-      ''', parameters: [minLat, maxLat, minLng, maxLng]);
+      final propiedades = await _gisService.getPropiedadesInBounds(
+        minLat: minLat,
+        minLng: minLng,
+        maxLat: maxLat,
+        maxLng: maxLng,
+      );
 
       final rentas = <RentaData>[];
 
-      // Función helper para convertir valores a numéricos de forma segura
-      double? parseDouble(dynamic value) {
-        if (value == null) return null;
-        if (value is num) return value.toDouble();
-        if (value is String) {
-          final parsed = double.tryParse(value);
-          return parsed;
-        }
-        return null;
-      }
-
-      int? parseInt(dynamic value) {
-        if (value == null) return null;
-        if (value is int) return value;
-        if (value is num) return value.toInt();
-        if (value is String) {
-          final parsed = int.tryParse(value);
-          return parsed;
-        }
-        return null;
-      }
-
-      for (final row in result) {
+      for (final prop in propiedades) {
         try {
-          final lat = (row[2] as num?)?.toDouble();
-          final lng = (row[3] as num?)?.toDouble();
+          final lat = prop['latitude'];
+          final lng = prop['longitude'];
 
           if (lat != null && lng != null) {
-            rentas.add(RentaData(
-              id: row[0] as int,
-              tipoVivienda: row[1]?.toString(),
-              latitude: lat,
-              longitude: lng,
-              nombre: row[4]?.toString(),
-              descripcion: row[5]?.toString(),
-              superficieM2: parseDouble(row[6]),
-              numCuartos: parseInt(row[7]),
-              numBanos: parseInt(row[8]),
-              numCajones: parseInt(row[9]),
-              extras: row[10]?.toString(),
-              codigoPostal: row[11]?.toString(),
-            ));
+            final latDouble = lat is num ? lat.toDouble() : (lat is String ? double.tryParse(lat) : null);
+            final lngDouble = lng is num ? lng.toDouble() : (lng is String ? double.tryParse(lng) : null);
+
+            if (latDouble != null && lngDouble != null) {
+              final data = Map<String, dynamic>.from(prop);
+              data.remove('latitude');
+              data.remove('longitude');
+              data.remove('geom_json');
+
+              rentas.add(RentaData(
+                data: data,
+                latitude: latDouble,
+                longitude: lngDouble,
+              ));
+            }
           }
         } catch (e) {
-          print('⚠️ Error procesando registro de renta: $e');
+          print('⚠️ Error procesando propiedad: $e');
         }
       }
 
       return rentas;
     } catch (e) {
-      print('❌ Error obteniendo rentas en área: $e');
+      print('❌ Error obteniendo propiedades en área: $e');
       rethrow;
     }
   }

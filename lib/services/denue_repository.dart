@@ -8,6 +8,9 @@ class MarketEntry {
   final String? postalCode;
   final LatLng position;
   final String? description;
+  final String? direccion;
+  final String? municipio;
+  final String? estado;
 
   MarketEntry({
     required this.name,
@@ -16,6 +19,9 @@ class MarketEntry {
     required this.position,
     this.postalCode,
     this.description,
+    this.direccion,
+    this.municipio,
+    this.estado,
   });
 }
 
@@ -58,6 +64,9 @@ class DenueRepository {
 
         final firm = normalizeFirm(name);
         final description = (m['descripcion'] ?? '').toString();
+        final direccion = (m['direccion'] ?? '').toString();
+        final municipio = (m['municipio'] ?? '').toString();
+        final estado = (m['estado'] ?? '').toString();
 
         final latVal = double.tryParse('${m['lat']}');
         final lonVal = double.tryParse('${m['lon']}');
@@ -73,6 +82,9 @@ class DenueRepository {
           postalCode: postalCode,
           position: LatLng(latVal, lonVal),
           description: description,
+          direccion: direccion.isNotEmpty ? direccion : null,
+          municipio: municipio.isNotEmpty ? municipio : null,
+          estado: estado.isNotEmpty ? estado : null,
         );
         
         out.add(entry);

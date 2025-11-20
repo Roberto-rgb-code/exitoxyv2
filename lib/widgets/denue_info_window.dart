@@ -28,18 +28,20 @@ class DenueInfoWindow extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 280),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
           // Header con nombre, nivel de concentración y botón cerrar
           Row(
             children: [
               Icon(Icons.storefront, color: Colors.blue, size: 20),
               const SizedBox(width: 8),
-              Expanded(
+              Flexible(
                 child: Text(
-                  name,
+                  name.isNotEmpty ? name : activity,
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -96,7 +98,8 @@ class DenueInfoWindow extends StatelessWidget {
             const SizedBox(height: 12),
             _buildConcentrationDetails(concentrationResult!),
           ],
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -132,6 +135,7 @@ class DenueInfoWindow extends StatelessWidget {
         border: Border.all(color: Colors.grey[300]!),
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(

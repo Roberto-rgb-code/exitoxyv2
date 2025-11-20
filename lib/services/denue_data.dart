@@ -32,11 +32,27 @@ class DenueApi {
       
       final out = <Map<String, dynamic>>[];
       for (final e in data) {
+        // Construir dirección si está disponible
+        String? direccion;
+        if (e['Vialidad'] != null || e['Numero_exterior'] != null) {
+          final vialidad = (e['Vialidad'] ?? '').toString().trim();
+          final numero = (e['Numero_exterior'] ?? '').toString().trim();
+          final colonia = (e['Colonia'] ?? '').toString().trim();
+          final parts = <String>[];
+          if (vialidad.isNotEmpty) parts.add(vialidad);
+          if (numero.isNotEmpty) parts.add(numero);
+          if (colonia.isNotEmpty) parts.add(colonia);
+          direccion = parts.isNotEmpty ? parts.join(', ') : null;
+        }
+        
         out.add({
           'lat': e['Latitud'],
           'lon': e['Longitud'],
           'nombre': e['Nombre'],
           'descripcion': e['Clase_actividad'],
+          'direccion': direccion,
+          'municipio': e['Municipio'],
+          'estado': e['Estado'],
         });
       }
       

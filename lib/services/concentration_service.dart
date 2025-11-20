@@ -18,12 +18,20 @@ class ConcentrationService {
       );
     }
 
-    // Normalizar firmas y contar
-    final counts = <String, int>{};
+    // Agrupar por nombre real del negocio (no normalizado)
+    // Usar el nombre original para mostrar, pero agrupar negocios similares
+    final counts = <String, int>{}; // Clave: nombre real del negocio
+    final nameToEntries = <String, List<MarketEntry>>{}; // Agrupar entradas por nombre
+    
     for (final entry in entries) {
-      final firm = entry.firm;
-      if (firm.isNotEmpty) {
-        counts.update(firm, (v) => v + 1, ifAbsent: () => 1);
+      final name = entry.name.trim();
+      if (name.isNotEmpty) {
+        // Agrupar por nombre exacto
+        if (!nameToEntries.containsKey(name)) {
+          nameToEntries[name] = [];
+        }
+        nameToEntries[name]!.add(entry);
+        counts.update(name, (v) => v + 1, ifAbsent: () => 1);
       }
     }
 
@@ -72,6 +80,7 @@ class ConcentrationService {
       color = 0xFFc62828; // rojo
     }
 
+    // Usar nombres reales directamente (ya no necesitamos mapeo)
     final topChains = top.take(10).map((e) => e.key).toList();
 
     return ConcentrationResult(

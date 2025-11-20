@@ -1,12 +1,10 @@
 import 'dart:convert';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:http/http.dart' as http;
+import '../core/config.dart';
 
-/// Para Android emulator usa 10.0.2.2 en lugar de localhost.
-const String _base = String.fromEnvironment(
-  'AGEB_BASE_URL',
-  defaultValue: 'http://10.0.2.2:3001',
-);
+/// Usa la API de Render configurada en Config
+String get _base => Config.apiBaseUrl;
 
 class AgebPolygon {
   final String id;

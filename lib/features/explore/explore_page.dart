@@ -78,7 +78,6 @@ class _ExplorePageState extends State<ExplorePage> {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Éxito XY')),
       body: Stack(
         children: [
           const ExploreMap(),

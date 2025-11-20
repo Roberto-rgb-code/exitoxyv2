@@ -151,17 +151,36 @@ class _RentasWidgetState extends State<RentasWidget> {
 
   String _buildInfoWindowSnippet(RentaData renta) {
     final parts = <String>[];
+    final data = renta.data;
     
-    if (renta.tipoVivienda != null) {
+    // Orden de prioridad para mostrar en el tooltip
+    // 1. Tipo de propiedad
+    if (renta.tipoVivienda != null && renta.tipoVivienda!.isNotEmpty) {
       parts.add(renta.tipoVivienda!);
     }
     
+    // 2. Superficie
     if (renta.superficieM2 != null) {
       parts.add('${renta.superficieM2!.toStringAsFixed(0)} m²');
     }
     
+    // 3. Cuartos
     if (renta.numCuartos != null) {
-      parts.add('${renta.numCuartos} cuartos');
+      parts.add('${renta.numCuartos} hab.');
+    }
+    
+    // 4. Baños
+    if (renta.numBanos != null) {
+      parts.add('${renta.numBanos} baños');
+    }
+    
+    // 5. Precio (si existe)
+    final precio = data['precio'] ?? data['renta'] ?? data['costo'];
+    if (precio != null) {
+      final precioStr = precio is num 
+          ? '\$${precio.toStringAsFixed(0)}' 
+          : precio.toString();
+      parts.add(precioStr);
     }
 
     return parts.isNotEmpty ? parts.join(' • ') : 'Ver detalles';
@@ -234,12 +253,12 @@ class _RentasWidgetState extends State<RentasWidget> {
                 const SizedBox(height: 24),
                 
                 // Información principal
-                if (renta.descripcion != null) ...[
+                if (renta.descripcion != null && renta.descripcion!.isNotEmpty) ...[
                   _buildInfoSection('Descripción', renta.descripcion!),
                   const SizedBox(height: 16),
                 ],
 
-                // Características
+                // Características principales
                 _buildInfoSection('Características', ''),
                 const SizedBox(height: 12),
                 Wrap(
@@ -254,7 +273,7 @@ class _RentasWidgetState extends State<RentasWidget> {
                     if (renta.numCuartos != null)
                       _buildFeatureChip(
                         Icons.bed,
-                        '${renta.numCuartos} cuartos',
+                        '${renta.numCuartos} hab.',
                       ),
                     if (renta.numBanos != null)
                       _buildFeatureChip(
@@ -269,15 +288,8 @@ class _RentasWidgetState extends State<RentasWidget> {
                   ],
                 ),
                 
-                if (renta.extras != null) ...[
-                  const SizedBox(height: 16),
-                  _buildInfoSection('Extras', renta.extras!),
-                ],
-
-                if (renta.codigoPostal != null) ...[
-                  const SizedBox(height: 16),
-                  _buildInfoSection('Código Postal', renta.codigoPostal!),
-                ],
+                // Mostrar todos los datos adicionales de la tabla
+                _buildAllDataSection(renta),
 
                 const SizedBox(height: 20),
               ],
@@ -337,6 +349,99 @@ class _RentasWidgetState extends State<RentasWidget> {
         ],
       ),
     );
+  }
+
+  Widget _buildAllDataSection(RentaData renta) {
+    final data = renta.data;
+    final excludedKeys = {
+      'latitude', 'longitude', 'geom_json', 'id', 'gid', 'iddato',
+      'nombre', 'descripcion', 'tipo_vivienda', 'tipo', 'titulo', 'detalles',
+      'superficie_m2', 'superficie', 'm2',
+      'num_cuartos', 'cuartos', 'habitaciones',
+      'num_banos', 'num_ba¤os', 'banos',
+      'num_cajones', 'cajones', 'estacionamiento',
+      'extras', 'caracteristicas',
+      'codigopostal', 'cp', 'codigo_postal',
+    };
+    
+    final additionalData = <MapEntry<String, dynamic>>[];
+    for (final entry in data.entries) {
+      if (!excludedKeys.contains(entry.key.toLowerCase()) && 
+          entry.value != null && 
+          entry.value.toString().isNotEmpty) {
+        additionalData.add(entry);
+      }
+    }
+    
+    if (additionalData.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 16),
+        _buildInfoSection('Información Adicional', ''),
+        const SizedBox(height: 12),
+        ...additionalData.map((entry) {
+          final key = _formatKey(entry.key);
+          final value = _formatValue(entry.value);
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  width: 120,
+                  child: Text(
+                    key,
+                    style: GoogleFonts.poppins(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey[700],
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: Text(
+                    value,
+                    style: GoogleFonts.poppins(
+                      fontSize: 13,
+                      color: Colors.grey[800],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }),
+      ],
+    );
+  }
+
+  String _formatKey(String key) {
+    // Convertir snake_case o camelCase a formato legible
+    return key
+        .replaceAll('_', ' ')
+        .replaceAllMapped(RegExp(r'([A-Z])'), (match) => ' ${match.group(1)}')
+        .split(' ')
+        .map((word) => word.isEmpty 
+            ? '' 
+            : word[0].toUpperCase() + word.substring(1).toLowerCase())
+        .join(' ')
+        .trim();
+  }
+
+  String _formatValue(dynamic value) {
+    if (value == null) return 'N/A';
+    if (value is num) {
+      if (value % 1 == 0) {
+        return value.toInt().toString();
+      } else {
+        return value.toStringAsFixed(2);
+      }
+    }
+    return value.toString();
   }
 
   @override

@@ -11,6 +11,7 @@ import 'denue_businesses_widget.dart';
 import 'visor_urbano_widget.dart';
 import 'map3d_widget.dart';
 import 'recommendations_display_widget.dart';
+import 'propiedades_list_widget.dart';
 
 class IntegratedAnalysisBottomSheet extends StatefulWidget {
   final double latitude;
@@ -44,7 +45,7 @@ class _IntegratedAnalysisBottomSheetState extends State<IntegratedAnalysisBottom
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 5, vsync: this);
+    _tabController = TabController(length: 6, vsync: this);
     _loadAllDataAsync(); // Cargar de forma asíncrona
   }
 
@@ -245,6 +246,7 @@ class _IntegratedAnalysisBottomSheetState extends State<IntegratedAnalysisBottom
                         Tab(icon: Icon(Icons.warning, size: 20), text: 'Delitos'),
                         Tab(icon: Icon(Icons.business, size: 20), text: 'DENUE'),
                         Tab(icon: Icon(Icons.home_work, size: 20), text: 'Visor'),
+                        Tab(icon: Icon(Icons.home, size: 20), text: 'Rentas'),
                         Tab(icon: Icon(Icons.recommend, size: 20), text: 'Recomendaciones'),
                         Tab(icon: Icon(Icons.threed_rotation, size: 20), text: '3D'),
                       ],
@@ -269,6 +271,12 @@ class _IntegratedAnalysisBottomSheetState extends State<IntegratedAnalysisBottom
                     
                     // Pestaña de Visor Urbano
                     VisorUrbanoWidget(
+                      latitude: widget.latitude,
+                      longitude: widget.longitude,
+                    ),
+                    
+                    // Pestaña de Rentas
+                    PropiedadesListWidget(
                       latitude: widget.latitude,
                       longitude: widget.longitude,
                     ),

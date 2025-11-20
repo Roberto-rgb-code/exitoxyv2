@@ -14,6 +14,7 @@ import 'map3d_widget.dart';
 import 'denue_businesses_widget.dart';
 import 'visor_urbano_widget.dart';
 import 'recommendations_button.dart';
+import 'propiedades_list_widget.dart';
 
 class IntegratedAnalysisWidget extends StatefulWidget {
   final double latitude;
@@ -208,6 +209,7 @@ class _IntegratedAnalysisWidgetState extends State<IntegratedAnalysisWidget>
                     Tab(icon: Icon(Icons.warning), text: 'Delitos'),
                     Tab(icon: Icon(Icons.business), text: 'DENUE'),
                     Tab(icon: Icon(Icons.home_work), text: 'Visor Urbano'),
+                    Tab(icon: Icon(Icons.home), text: 'Rentas'),
                     Tab(icon: Icon(Icons.recommend), text: 'Recomendaciones'),
                     Tab(icon: Icon(Icons.storefront), text: 'Marketplace'),
                     Tab(icon: Icon(Icons.threed_rotation), text: 'Mapa 3D'),
@@ -233,6 +235,12 @@ class _IntegratedAnalysisWidgetState extends State<IntegratedAnalysisWidget>
                 
                 // Pestaña de Visor Urbano
                 VisorUrbanoWidget(
+                  latitude: widget.latitude,
+                  longitude: widget.longitude,
+                ),
+                
+                // Pestaña de Rentas
+                PropiedadesListWidget(
                   latitude: widget.latitude,
                   longitude: widget.longitude,
                 ),

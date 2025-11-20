@@ -75,14 +75,19 @@ class _ActivityPromptState extends State<ActivityPrompt> {
     try {
       setState(() => _isValidating = true);
       
-      // 1. Analizar la concentración (esto también genera recomendaciones)
+      print('🚀 Iniciando análisis completo para: "$activity"');
+      
+      // 1. Analizar la concentración (esto también genera recomendaciones y muestra marcadores)
       await controller.analyzeConcentration(activity);
       
-      // 2. Mostrar los marcadores DENUE en el mapa
-      await controller.showDenueMarkers(activity);
+      print('✅ analyzeConcentration completado, verificando marcadores...');
       
-      // 3. Cargar y mostrar marcadores de delitos
-      await controller.showDelitosMarkers();
+      // Verificar que los marcadores se hayan agregado
+      final markersCount = controller.allMarkers().length;
+      final denueCount = controller.allMarkers().where((m) => m.markerId.value.startsWith('denue_')).length;
+      
+      print('📊 Total marcadores después del análisis: $markersCount');
+      print('📊 Marcadores DENUE: $denueCount');
       
       setState(() => _isValidActivity = true);
       
@@ -96,7 +101,7 @@ class _ActivityPromptState extends State<ActivityPrompt> {
                 Text('✅ Análisis completado: $activity'),
                 const SizedBox(height: 4),
                 Text(
-                  '📍 Marcadores mostrados en el mapa',
+                  '📍 $denueCount marcadores DENUE mostrados en el mapa',
                   style: TextStyle(fontSize: 12),
                 ),
                 Text(
@@ -110,7 +115,9 @@ class _ActivityPromptState extends State<ActivityPrompt> {
           ),
         );
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      print('❌ ERROR en _analyzeConcentration: $e');
+      print('📚 Stack trace: $stackTrace');
       setState(() => _isValidActivity = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -164,50 +171,85 @@ class _ActivityPromptState extends State<ActivityPrompt> {
                   ),
                 ],
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
+              child: Stack(
                 children: [
-                  TextField(
-                    controller: _activityController,
-                    decoration: InputDecoration(
-                      hintText: 'Actividad económica',
-                      border: InputBorder.none,
-                      suffixIcon: _isValidating
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : IconButton(
-                              icon: Icon(
-                                _isValidActivity ? Icons.check_circle : Icons.search,
-                                color: _isValidActivity ? Colors.green : Colors.grey,
-                              ),
-                              onPressed: _validateActivity,
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextField(
+                        controller: _activityController,
+                        decoration: InputDecoration(
+                          hintText: 'Actividad económica',
+                          border: InputBorder.none,
+                          suffixIcon: _isValidating
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : IconButton(
+                                  icon: Icon(
+                                    _isValidActivity ? Icons.check_circle : Icons.search,
+                                    color: _isValidActivity ? Colors.green : Colors.grey,
+                                  ),
+                                  onPressed: _validateActivity,
+                                ),
+                        ),
+                        onChanged: (value) {
+                          setState(() => _isValidActivity = false);
+                        },
+                        onSubmitted: (_) => _validateActivity(),
+                      ),
+                      
+                      if (_isValidActivity) ...[
+                        const SizedBox(height: 8),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: _analyzeConcentration,
+                            icon: const Icon(Icons.analytics, size: 16),
+                            label: const Text('Analizar'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blue,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 8),
                             ),
-                    ),
-                    onChanged: (value) {
-                      setState(() => _isValidActivity = false);
-                    },
-                    onSubmitted: (_) => _validateActivity(),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
-                  
-                  if (_isValidActivity) ...[
-                    const SizedBox(height: 8),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: _analyzeConcentration,
-                        icon: const Icon(Icons.analytics, size: 16),
-                        label: const Text('Analizar'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 8),
+                  // Botón de cerrar
+                  Positioned(
+                    top: 0,
+                    right: 0,
+                    child: Material(
+                      color: Colors.black.withOpacity(0.5),
+                      shape: const CircleBorder(),
+                      child: InkWell(
+                        onTap: () {
+                          // Solo resetear el widget, NO limpiar los marcadores
+                          _activityController.clear();
+                          setState(() {
+                            _isValidActivity = false;
+                          });
+                        },
+                        borderRadius: BorderRadius.circular(20),
+                        child: Container(
+                          width: 28,
+                          height: 28,
+                          decoration: const BoxDecoration(
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.close,
+                            color: Colors.white,
+                            size: 20,
+                          ),
                         ),
                       ),
                     ),
-                  ],
+                  ),
                 ],
               ),
             ),

@@ -10,6 +10,7 @@ class MySQLConnector {
     password: Config.mysqlPassword,
     databaseName: Config.mysqlDatabase,
     maxConnections: 50,
+    secure: true, // Habilitar SSL (el servidor remoto lo requiere)
   );
 
   /// Devuelve: [agebs(List<String>), geometry(List<dynamic>), demografic(List<Map>)]

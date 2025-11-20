@@ -614,5 +614,150 @@ class PostgresGisService {
 
     return rows;
   }
+
+  /// Obtener todas las propiedades de la tabla propiedades
+  Future<List<Map<String, dynamic>>> getAllPropiedades() async {
+    final conn = await getConnection();
+    
+    // Primero obtener las columnas de la tabla
+    final columns = await getTableColumns('propiedades');
+    final columnNames = columns.map((col) => col['name'] as String).toList();
+    
+    // Verificar si tiene columna de geometría
+    final geomInfo = await getGeometryInfo('propiedades');
+    String? geometryColumn = geomInfo?['column'] as String?;
+    
+    // Si no se encontró en geometry_columns, buscar manualmente
+    if (geometryColumn == null) {
+      for (final col in columns) {
+        final colName = col['name']?.toString().toLowerCase() ?? '';
+        if (colName.contains('geom') || colName.contains('coord')) {
+          geometryColumn = col['name'] as String;
+          break;
+        }
+      }
+    }
+    
+    String query;
+    if (geometryColumn != null) {
+      // Si tiene geometría, extraer lat/lng y convertir a GeoJSON
+      query = '''
+        SELECT 
+          *,
+          ST_Y(ST_Transform("$geometryColumn", 4326)) as latitude,
+          ST_X(ST_Transform("$geometryColumn", 4326)) as longitude,
+          ST_AsGeoJSON(ST_Transform("$geometryColumn", 4326)) as geom_json
+        FROM propiedades
+        WHERE "$geometryColumn" IS NOT NULL;
+      ''';
+      columnNames.addAll(['latitude', 'longitude', 'geom_json']);
+    } else {
+      // Si no tiene geometría, solo obtener todos los datos
+      query = 'SELECT * FROM propiedades;';
+    }
+    
+    print('🔍 Ejecutando consulta para obtener propiedades...');
+    final result = await conn.execute(query);
+    
+    print('📊 Filas obtenidas: ${result.length}');
+    final propiedades = <Map<String, dynamic>>[];
+    
+    for (var i = 0; i < result.length; i++) {
+      final row = result[i];
+      final map = <String, dynamic>{};
+      
+      for (var j = 0; j < row.length && j < columnNames.length; j++) {
+        final colName = columnNames[j];
+        var value = row[j];
+        
+        // Convertir valores numéricos de forma segura
+        if (value != null && value is String) {
+          // Intentar convertir a número si es posible
+          final numValue = num.tryParse(value);
+          if (numValue != null) {
+            value = numValue;
+          }
+        }
+        
+        map[colName] = value;
+      }
+      
+      propiedades.add(map);
+    }
+    
+    print('✅ Total de ${propiedades.length} propiedades obtenidas');
+    return propiedades;
+  }
+
+  /// Obtener propiedades dentro de un área específica
+  Future<List<Map<String, dynamic>>> getPropiedadesInBounds({
+    required double minLat,
+    required double minLng,
+    required double maxLat,
+    required double maxLng,
+    int limit = 100,
+  }) async {
+    final conn = await getConnection();
+    
+    final columns = await getTableColumns('propiedades');
+    final columnNames = columns.map((col) => col['name'] as String).toList();
+    
+    final geomInfo = await getGeometryInfo('propiedades');
+    String? geometryColumn = geomInfo?['column'] as String?;
+    
+    if (geometryColumn == null) {
+      for (final col in columns) {
+        final colName = col['name']?.toString().toLowerCase() ?? '';
+        if (colName.contains('geom') || colName.contains('coord')) {
+          geometryColumn = col['name'] as String;
+          break;
+        }
+      }
+    }
+    
+    if (geometryColumn == null) {
+      throw Exception('No se encontró columna de geometría en la tabla propiedades');
+    }
+    
+    columnNames.addAll(['latitude', 'longitude', 'geom_json']);
+    
+    final result = await conn.execute(
+      '''
+      SELECT 
+        *,
+        ST_Y(ST_Transform("$geometryColumn", 4326)) as latitude,
+        ST_X(ST_Transform("$geometryColumn", 4326)) as longitude,
+        ST_AsGeoJSON(ST_Transform("$geometryColumn", 4326)) as geom_json
+      FROM propiedades
+      WHERE ST_Intersects(
+        ST_Transform("$geometryColumn", 4326),
+        ST_MakeEnvelope(\$1, \$2, \$3, \$4, 4326)
+      )
+      LIMIT \$5;
+      ''',
+      parameters: [minLng, minLat, maxLng, maxLat, limit],
+    );
+    
+    final propiedades = <Map<String, dynamic>>[];
+    for (final row in result) {
+      final map = <String, dynamic>{};
+      for (var i = 0; i < row.length && i < columnNames.length; i++) {
+        final colName = columnNames[i];
+        var value = row[i];
+        
+        if (value != null && value is String) {
+          final numValue = num.tryParse(value);
+          if (numValue != null) {
+            value = numValue;
+          }
+        }
+        
+        map[colName] = value;
+      }
+      propiedades.add(map);
+    }
+    
+    return propiedades;
+  }
 }
 

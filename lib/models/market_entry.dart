@@ -6,6 +6,10 @@ class MarketEntry {
   final String activity;
   final String? postalCode;
   final LatLng position;
+  final String? description;
+  final String? direccion;
+  final String? municipio;
+  final String? estado;
 
   MarketEntry({
     required this.name,
@@ -13,5 +17,9 @@ class MarketEntry {
     required this.activity,
     required this.position,
     this.postalCode,
+    this.description,
+    this.direccion,
+    this.municipio,
+    this.estado,
   });
 }

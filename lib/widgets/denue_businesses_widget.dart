@@ -292,31 +292,36 @@ class _DenueBusinessesWidgetState extends State<DenueBusinessesWidget> {
           const SizedBox(height: 12),
           
           // Información adicional
-          if (business['telefono'] != null && business['telefono'].isNotEmpty) ...[
-            _buildInfoRow(Icons.phone, 'Teléfono', business['telefono'], colorScheme),
+          if (business['telefono'] != null && business['telefono'].toString().isNotEmpty) ...[
+            _buildInfoRow(Icons.phone, 'Teléfono', business['telefono'].toString(), colorScheme),
             const SizedBox(height: 8),
           ],
           
-          if (business['correo'] != null && business['correo'].isNotEmpty) ...[
-            _buildInfoRow(Icons.email, 'Email', business['correo'], colorScheme),
+          if (business['correo'] != null && business['correo'].toString().isNotEmpty) ...[
+            _buildInfoRow(Icons.email, 'Email', business['correo'].toString(), colorScheme),
             const SizedBox(height: 8),
           ],
           
-          _buildInfoRow(
-            Icons.location_on,
-            'Dirección',
-            '${business['nombre_vialidad'] ?? ''} ${business['numero_exterior'] ?? ''}, ${business['colonia'] ?? ''}',
-            colorScheme,
-          ),
+          // Construir dirección
+          if (business['nombre_vialidad'] != null || business['numero_exterior'] != null || business['asentamiento'] != null) ...[
+            _buildInfoRow(
+              Icons.location_on,
+              'Dirección',
+              _buildAddress(business),
+              colorScheme,
+            ),
+            const SizedBox(height: 8),
+          ],
           
-          const SizedBox(height: 8),
-          
-          _buildInfoRow(
-            Icons.location_city,
-            'Ubicación',
-            '${business['municipio'] ?? ''}, ${business['estado'] ?? ''}',
-            colorScheme,
-          ),
+          // Ubicación (municipio y estado)
+          if (business['municipio'] != null || business['estado'] != null) ...[
+            _buildInfoRow(
+              Icons.location_city,
+              'Ubicación',
+              '${business['municipio'] ?? ''}${business['municipio'] != null && business['estado'] != null ? ', ' : ''}${business['estado'] ?? ''}',
+              colorScheme,
+            ),
+          ],
         ],
       ),
     ),
@@ -341,18 +346,44 @@ class _DenueBusinessesWidgetState extends State<DenueBusinessesWidget> {
     );
   }
 
+  String _buildAddress(Map<String, dynamic> business) {
+    final parts = <String>[];
+    if (business['tipo_vialidad'] != null && business['tipo_vialidad'].toString().isNotEmpty) {
+      parts.add(business['tipo_vialidad'].toString());
+    }
+    if (business['nombre_vialidad'] != null && business['nombre_vialidad'].toString().isNotEmpty) {
+      parts.add(business['nombre_vialidad'].toString());
+    }
+    if (business['numero_exterior'] != null && business['numero_exterior'].toString().isNotEmpty) {
+      parts.add('No. ${business['numero_exterior']}');
+    }
+    if (business['numero_interior'] != null && business['numero_interior'].toString().isNotEmpty) {
+      parts.add('Int. ${business['numero_interior']}');
+    }
+    if (business['asentamiento'] != null && business['asentamiento'].toString().isNotEmpty) {
+      parts.add(business['asentamiento'].toString());
+    }
+    return parts.isEmpty ? 'Dirección no disponible' : parts.join(', ');
+  }
+
   void _showDenueModal(BuildContext context, Map<String, dynamic> business) {
+    // Construir dirección completa
+    final direccion = _buildAddress(business);
+    
     // Convertir el Map a MarketEntry
     final entry = MarketEntry(
-      name: business['nombre'] ?? 'Negocio',
-      firm: business['empresa'] ?? business['nombre'] ?? 'Empresa',
-      activity: business['descripcion'] ?? 'Sin descripción',
+      name: business['nombre']?.toString() ?? 'Negocio',
+      firm: business['nombre']?.toString() ?? 'Empresa',
+      activity: business['descripcion']?.toString() ?? 'Sin descripción',
       position: LatLng(
-        business['latitud'] ?? 0.0,
-        business['longitud'] ?? 0.0,
+        double.tryParse(business['lat']?.toString() ?? business['latitud']?.toString() ?? '0') ?? 0.0,
+        double.tryParse(business['lon']?.toString() ?? business['longitud']?.toString() ?? '0') ?? 0.0,
       ),
-      postalCode: business['codigo_postal'],
-      description: business['descripcion'],
+      postalCode: business['codigo_postal']?.toString(),
+      description: business['descripcion']?.toString(),
+      direccion: direccion != 'Dirección no disponible' ? direccion : null,
+      municipio: business['municipio']?.toString(),
+      estado: business['estado']?.toString(),
     );
 
     showModalBottomSheet(
