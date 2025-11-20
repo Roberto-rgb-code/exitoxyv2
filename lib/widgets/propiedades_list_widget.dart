@@ -216,6 +216,11 @@ class _PropiedadesListWidgetState extends State<PropiedadesListWidget> {
                       Icons.local_parking,
                       '${propiedad.numCajones} cajones',
                     ),
+                  if (propiedad.fotos.isNotEmpty)
+                    _buildInfoChip(
+                      Icons.photo,
+                      '${propiedad.fotos.length} foto${propiedad.fotos.length > 1 ? 's' : ''}',
+                    ),
                 ],
               ),
               if (propiedad.descripcion != null && propiedad.descripcion!.isNotEmpty) ...[
@@ -319,6 +324,13 @@ class _PropiedadesListWidgetState extends State<PropiedadesListWidget> {
                   ],
                 ),
                 const SizedBox(height: 24),
+                
+                // Galería de fotos
+                if (propiedad.fotos.isNotEmpty) ...[
+                  _buildFotosSection(propiedad.fotos),
+                  const SizedBox(height: 24),
+                ],
+                
                 if (propiedad.descripcion != null && propiedad.descripcion!.isNotEmpty) ...[
                   _buildInfoSection('Descripción', propiedad.descripcion!),
                   const SizedBox(height: 16),
@@ -411,6 +423,7 @@ class _PropiedadesListWidgetState extends State<PropiedadesListWidget> {
       'num_cajones', 'cajones', 'estacionamiento',
       'extras', 'caracteristicas',
       'codigopostal', 'cp', 'codigo_postal',
+      'fotos', 'foto', 'imagenes', 'imagen', // Excluir fotos de información adicional
     };
     
     final additionalData = <MapEntry<String, dynamic>>[];
@@ -490,6 +503,87 @@ class _PropiedadesListWidgetState extends State<PropiedadesListWidget> {
       }
     }
     return value.toString();
+  }
+
+  Widget _buildFotosSection(List<String> fotos) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.photo_library, color: Colors.purple[700], size: 20),
+            const SizedBox(width: 8),
+            Text(
+              'Fotos (${fotos.length})',
+              style: GoogleFonts.poppins(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 200,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            itemCount: fotos.length,
+            itemBuilder: (context, index) {
+              return Container(
+                margin: EdgeInsets.only(right: index < fotos.length - 1 ? 12 : 0),
+                width: 200,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey[300]!),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.network(
+                    fotos[index],
+                    fit: BoxFit.cover,
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return Container(
+                        color: Colors.grey[200],
+                        child: Center(
+                          child: CircularProgressIndicator(
+                            value: loadingProgress.expectedTotalBytes != null
+                                ? loadingProgress.cumulativeBytesLoaded /
+                                    loadingProgress.expectedTotalBytes!
+                                : null,
+                          ),
+                        ),
+                      );
+                    },
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        color: Colors.grey[200],
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.image_not_supported, 
+                                 size: 40, 
+                                 color: Colors.grey[400]),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Error cargando imagen',
+                              style: GoogleFonts.poppins(
+                                fontSize: 12,
+                                color: Colors.grey[500],
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
   }
 }
 

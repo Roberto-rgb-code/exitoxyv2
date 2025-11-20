@@ -1,3 +1,4 @@
+import 'dart:convert';
 import '../core/config.dart';
 import 'postgres_gis_service.dart';
 
@@ -51,6 +52,60 @@ class RentaData {
   }
   String? get extras => data['extras']?.toString() ?? data['caracteristicas']?.toString();
   String? get codigoPostal => data['codigopostal']?.toString() ?? data['cp']?.toString() ?? data['codigo_postal']?.toString();
+  
+  /// Obtener URLs de fotos (puede ser String, List, o JSON)
+  List<String> get fotos {
+    final fotosData = data['fotos'] ?? data['foto'] ?? data['imagenes'] ?? data['imagen'];
+    if (fotosData == null) return [];
+    
+    // Si es una lista
+    if (fotosData is List) {
+      return fotosData
+          .map((f) => f?.toString().trim())
+          .where((f) => f != null && f.isNotEmpty && f.startsWith('http'))
+          .cast<String>()
+          .toList();
+    }
+    
+    // Si es un string, puede ser JSON o URLs separadas por comas
+    if (fotosData is String) {
+      final trimmed = fotosData.trim();
+      if (trimmed.isEmpty) return [];
+      
+      // Intentar parsear como JSON
+      try {
+        final decoded = json.decode(trimmed);
+        if (decoded is List) {
+          return decoded
+              .map((f) => f?.toString().trim())
+              .where((f) => f != null && f.isNotEmpty && f.startsWith('http'))
+              .cast<String>()
+              .toList();
+        }
+      } catch (e) {
+        // No es JSON, tratar como string separado por comas, pipes, o saltos de línea
+      }
+      
+      // Dividir por comas, punto y coma, pipes (|) con o sin espacios, o saltos de línea
+      List<String> urls;
+      if (trimmed.contains(' | ')) {
+        // Si contiene " | " (pipe con espacios), dividir por eso primero
+        urls = trimmed.split(' | ');
+      } else {
+        // Dividir por otros separadores
+        urls = trimmed.split(RegExp(r'[,;|\n\r]+'));
+      }
+      
+      urls = urls
+          .map((url) => url.trim())
+          .where((url) => url.isNotEmpty && url.startsWith('http'))
+          .toList();
+      
+      return urls;
+    }
+    
+    return [];
+  }
 
   Map<String, dynamic> toMap() {
     return {
