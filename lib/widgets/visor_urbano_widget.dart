@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
 import '../services/visor_urbano_service.dart';
+import 'glossary_tooltip.dart';
 
 class VisorUrbanoWidget extends StatefulWidget {
   final double latitude;
@@ -118,20 +119,56 @@ class _VisorUrbanoWidgetState extends State<VisorUrbanoWidget> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Datos del Predio',
-                        style: GoogleFonts.poppins(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
+                      Row(
+                        children: [
+                          Text(
+                            'Datos del ',
+                            style: GoogleFonts.poppins(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: () => showGlossaryModal(context, 'predio'),
+                            child: Row(
+                              children: [
+                                Text(
+                                  'Predio',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                    decoration: TextDecoration.underline,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                GlossaryHelpIcon(
+                                  termKey: 'predio',
+                                  color: Colors.white70,
+                                  size: 16,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
-                      Text(
-                        'Visor Urbano',
-                        style: GoogleFonts.poppins(
-                          fontSize: 14,
-                          color: Colors.white.withOpacity(0.9),
-                        ),
+                      Row(
+                        children: [
+                          Text(
+                            'Visor Urbano',
+                            style: GoogleFonts.poppins(
+                              fontSize: 14,
+                              color: Colors.white.withOpacity(0.9),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          GlossaryHelpIcon(
+                            termKey: 'visor_urbano',
+                            color: Colors.white60,
+                            size: 12,
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -297,9 +334,11 @@ class _VisorUrbanoWidgetState extends State<VisorUrbanoWidget> {
           const SizedBox(height: 16),
 
           // Uso del suelo
-          _buildSection(
+          _buildSectionWithGlossary(
+            context,
             'Uso del Suelo',
             Icons.landscape,
+            'uso_suelo',
             [
               _buildInfoItem('Código', uso['codigo'] ?? 'N/A', colorScheme),
               _buildInfoItem('Descripción', uso['descripcion'] ?? 'N/A', colorScheme),
@@ -336,6 +375,47 @@ class _VisorUrbanoWidgetState extends State<VisorUrbanoWidget> {
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 12),
+          ...children,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionWithGlossary(BuildContext context, String title, IconData icon, String glossaryKey, List<Widget> children, ColorScheme colorScheme) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceVariant.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: colorScheme.outline.withOpacity(0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          GestureDetector(
+            onTap: () => showGlossaryModal(context, glossaryKey),
+            child: Row(
+              children: [
+                Icon(icon, color: colorScheme.primary, size: 20),
+                const SizedBox(width: 8),
+                Text(
+                  title,
+                  style: GoogleFonts.poppins(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: colorScheme.onSurface,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                GlossaryHelpIcon(
+                  termKey: glossaryKey,
+                  color: colorScheme.primary,
+                  size: 16,
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 12),
           ...children,

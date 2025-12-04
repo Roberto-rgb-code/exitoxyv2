@@ -71,6 +71,10 @@ dependencies:
   flutter_map: ^7.0.2
   latlong2: ^0.9.1
   vector_math: ^2.1.4
+  
+  # Custom marker icons
+  flutter_svg: ^2.0.10+1
+  material_design_icons_flutter: ^7.0.7296
 
 dev_dependencies:
   flutter_test:

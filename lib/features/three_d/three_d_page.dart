@@ -20,7 +20,13 @@ class _ThreeDPageState extends State<ThreeDPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Vista 3D'),
+        title: Row(
+          children: const [
+            Icon(Icons.threed_rotation_rounded),
+            SizedBox(width: 8),
+            Text('Vista 3D'),
+          ],
+        ),
         actions: [
           if (exploreController.showConcentrationLayer)
             IconButton(

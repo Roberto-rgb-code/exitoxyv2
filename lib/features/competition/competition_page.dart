@@ -1,4 +1,3 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:geocoding/geocoding.dart';
 
@@ -10,6 +9,7 @@ import '../../models/concentration_result.dart';
 import '../../models/recommendation.dart';
 import '../explore/widgets/concentration_panel.dart';
 import '../../widgets/recommendation_panel.dart';
+import '../../widgets/glossary_tooltip.dart';
 
 class CompetitionPage extends StatefulWidget {
   const CompetitionPage({super.key});
@@ -77,8 +77,7 @@ class _CompetitionPageState extends State<CompetitionPage> {
         CacheService.put(act, cp, cached);
       }
 
-      // 6) Generar recomendaciones (simulamos demografía básica)
-      final demography = {'t': 5000, 'm': 2500, 'f': 2500}; // Datos simulados
+      // 6) Generar recomendaciones (demografía simulada sólo para contexto)
       final recommendationService = RecommendationService();
       _recommendations = await recommendationService.generateRecommendations(
         latitude: 20.6597, // Coordenadas de Guadalajara
@@ -101,25 +100,137 @@ class _CompetitionPageState extends State<CompetitionPage> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Competencia')),
+      appBar: AppBar(
+        title: Row(
+          children: const [
+            Icon(Icons.leaderboard_rounded),
+            SizedBox(width: 8),
+            Text('Competencia'),
+          ],
+        ),
+        actions: [
+          IconButton(
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const GlossaryPage()),
+            ),
+            icon: const Icon(Icons.menu_book_rounded),
+            tooltip: 'Glosario de términos',
+          ),
+        ],
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          Text('Índice de concentración (DENUE: HHI / CR4)', style: theme.textTheme.titleMedium),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _actCtrl,
-            decoration: const InputDecoration(
-              labelText: 'Actividad económica (ej. abarrotes)',
-            ),
+          // Título con tooltip de HHI y CR4
+          Row(
+            children: [
+              const Text(
+                'Índice de concentración (',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+              ),
+              GestureDetector(
+                onTap: () => showGlossaryModal(context, 'denue'),
+                child: Row(
+                  children: [
+                    Text(
+                      'DENUE',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: theme.colorScheme.primary,
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
+                    const SizedBox(width: 2),
+                    GlossaryHelpIcon(termKey: 'denue', size: 14),
+                  ],
+                ),
+              ),
+              const Text(
+                ': ',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+              ),
+              GestureDetector(
+                onTap: () => showGlossaryModal(context, 'hhi'),
+                child: Row(
+                  children: [
+                    Text(
+                      'HHI',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.orange[700],
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
+                    const SizedBox(width: 2),
+                    GlossaryHelpIcon(termKey: 'hhi', color: Colors.orange[700], size: 14),
+                  ],
+                ),
+              ),
+              const Text(
+                ' / ',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+              ),
+              GestureDetector(
+                onTap: () => showGlossaryModal(context, 'cr4'),
+                child: Row(
+                  children: [
+                    Text(
+                      'CR4',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.purple[700],
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
+                    const SizedBox(width: 2),
+                    GlossaryHelpIcon(termKey: 'cr4', color: Colors.purple[700], size: 14),
+                  ],
+                ),
+              ),
+              const Text(
+                ')',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          
+          // Campo de actividad económica con tooltip
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _actCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Actividad económica (ej. abarrotes)',
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              GlossaryHelpIcon(termKey: 'denue', color: Colors.grey[600], size: 18),
+            ],
           ),
           const SizedBox(height: 12),
-          TextField(
-            controller: _cpCtrl,
-            keyboardType: TextInputType.number,
-            decoration: const InputDecoration(
-              labelText: 'Código postal',
-            ),
+          
+          // Campo de código postal con tooltip
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _cpCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Código postal',
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              GlossaryHelpIcon(termKey: 'ageb', color: Colors.grey[600], size: 18),
+            ],
           ),
           const SizedBox(height: 12),
           FilledButton.icon(

@@ -5,6 +5,7 @@ import 'package:syncfusion_flutter_charts/charts.dart';
 import '../services/denue_service.dart';
 import '../services/elasticity_service.dart';
 import '../services/postgres_gis_service.dart';
+import '../services/glossary_service.dart';
 
 class MercadoElasticidadWidget extends StatefulWidget {
   final double latitude;
@@ -21,7 +22,6 @@ class MercadoElasticidadWidget extends StatefulWidget {
 }
 
 class _MercadoElasticidadWidgetState extends State<MercadoElasticidadWidget> {
-  List<Map<String, dynamic>> _businesses = [];
   SpatialElasticityResult? _spatialElasticity;
   List<CrossElasticityResult> _crossElasticities = [];
   Map<String, IncomeElasticityResult> _incomeElasticities = {};
@@ -107,7 +107,6 @@ class _MercadoElasticidadWidgetState extends State<MercadoElasticidadWidget> {
       );
 
       setState(() {
-        _businesses = allBusinesses;
         _spatialElasticity = spatial;
         _crossElasticities = cross;
         _incomeElasticities = income;
@@ -185,20 +184,28 @@ class _MercadoElasticidadWidgetState extends State<MercadoElasticidadWidget> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Análisis de Elasticidad',
-                        style: GoogleFonts.poppins(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      Row(
+                        children: [
+                          Text(
+                            'Análisis de Elasticidad',
+                            style: GoogleFonts.poppins(
+                              color: Colors.white,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          _buildHelpIcon(context, 'elasticidad_precio', color: Colors.white70),
+                        ],
                       ),
-                      Text(
-                        'Precio, Cruzada e Ingreso',
-                        style: GoogleFonts.poppins(
-                          color: Colors.white70,
-                          fontSize: 12,
-                        ),
+                      Row(
+                        children: [
+                          _buildTermLink(context, 'Precio', 'elasticidad_precio'),
+                          Text(', ', style: GoogleFonts.poppins(color: Colors.white70, fontSize: 12)),
+                          _buildTermLink(context, 'Cruzada', 'elasticidad_cruzada'),
+                          Text(' e ', style: GoogleFonts.poppins(color: Colors.white70, fontSize: 12)),
+                          _buildTermLink(context, 'Ingreso', 'elasticidad_ingreso'),
+                        ],
                       ),
                     ],
                   ),
@@ -244,13 +251,16 @@ class _MercadoElasticidadWidgetState extends State<MercadoElasticidadWidget> {
               children: [
                 Icon(Icons.map, color: Colors.blue[700], size: 24),
                 const SizedBox(width: 12),
-                Text(
-                  'Elasticidad Precio-Espacial',
-                  style: GoogleFonts.poppins(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                Expanded(
+                  child: Text(
+                    'Elasticidad Precio-Espacial',
+                    style: GoogleFonts.poppins(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
+                _buildHelpIcon(context, 'elasticidad_espacial', color: Colors.blue[700]),
               ],
             ),
             const SizedBox(height: 16),
@@ -345,15 +355,34 @@ class _MercadoElasticidadWidgetState extends State<MercadoElasticidadWidget> {
                 Icon(Icons.swap_horiz, color: Colors.purple[700], size: 24),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: Text(
-                    'Elasticidad Cruzada (Sustitutos)',
-                    style: GoogleFonts.poppins(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    overflow: TextOverflow.ellipsis,
+                  child: Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          'Elasticidad Cruzada ',
+                          style: GoogleFonts.poppins(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () => _showTermDefinition(context, 'bienes_sustitutos'),
+                        child: Text(
+                          '(Sustitutos)',
+                          style: GoogleFonts.poppins(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.purple[400],
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
+                _buildHelpIcon(context, 'elasticidad_cruzada', color: Colors.purple[700]),
               ],
             ),
             const SizedBox(height: 16),
@@ -450,13 +479,32 @@ class _MercadoElasticidadWidgetState extends State<MercadoElasticidadWidget> {
               children: [
                 Icon(Icons.attach_money, color: Colors.green[700], size: 24),
                 const SizedBox(width: 12),
-                Text(
-                  'Elasticidad Ingreso (Demanda)',
-                  style: GoogleFonts.poppins(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                Expanded(
+                  child: Row(
+                    children: [
+                      Text(
+                        'Elasticidad Ingreso ',
+                        style: GoogleFonts.poppins(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () => _showTermDefinition(context, 'bien_normal'),
+                        child: Text(
+                          '(Demanda)',
+                          style: GoogleFonts.poppins(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.green[400],
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
+                _buildHelpIcon(context, 'elasticidad_ingreso', color: Colors.green[700]),
               ],
             ),
             const SizedBox(height: 16),
@@ -539,12 +587,41 @@ class _MercadoElasticidadWidgetState extends State<MercadoElasticidadWidget> {
               );
             }),
             const SizedBox(height: 8),
-            Text(
-              'Elasticidad ingreso > 1: Bien normal de lujo | 0-1: Bien normal necesario | < 0: Bien inferior',
-              style: GoogleFonts.poppins(
-                fontSize: 11,
-                color: Colors.grey[600],
-                fontStyle: FontStyle.italic,
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.green[50],
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.green[200]!),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.info_outline, size: 16, color: Colors.green[700]),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Interpretación:',
+                        style: GoogleFonts.poppins(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.green[700],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    children: [
+                      _buildElasticityBadge(context, 'E > 1', 'Bien de lujo', 'bien_normal', Colors.purple),
+                      _buildElasticityBadge(context, '0 < E < 1', 'Bien necesario', 'bien_normal', Colors.blue),
+                      _buildElasticityBadge(context, 'E < 0', 'Bien inferior', 'bien_inferior', Colors.orange),
+                    ],
+                  ),
+                ],
               ),
             ),
           ],
@@ -817,6 +894,297 @@ class _MercadoElasticidadWidgetState extends State<MercadoElasticidadWidget> {
     } else {
       return 'Baja elasticidad cruzada: Estas actividades tienen poca relación como sustitutos. Sus demandas son relativamente independientes.';
     }
+  }
+
+  /// Construye un badge de elasticidad con tooltip
+  Widget _buildElasticityBadge(BuildContext context, String formula, String label, String termKey, Color color) {
+    return GestureDetector(
+      onTap: () => _showTermDefinition(context, termKey),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: color.withOpacity(0.3)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              '$formula: ',
+              style: GoogleFonts.poppins(
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
+            Text(
+              label,
+              style: GoogleFonts.poppins(
+                fontSize: 10,
+                color: color,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Icon(Icons.help_outline_rounded, size: 12, color: color),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Construye un icono de ayuda (?) para términos del glosario
+  Widget _buildHelpIcon(BuildContext context, String termKey, {Color? color}) {
+    return GestureDetector(
+      onTap: () => _showTermDefinition(context, termKey),
+      child: Container(
+        width: 18,
+        height: 18,
+        decoration: BoxDecoration(
+          color: (color ?? Colors.green[700])!.withOpacity(0.2),
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: (color ?? Colors.green[700])!.withOpacity(0.5),
+            width: 1,
+          ),
+        ),
+        child: Icon(
+          Icons.help_outline_rounded,
+          size: 12,
+          color: color ?? Colors.green[700],
+        ),
+      ),
+    );
+  }
+
+  /// Construye un texto con link al glosario
+  Widget _buildTermLink(BuildContext context, String displayText, String termKey) {
+    return GestureDetector(
+      onTap: () => _showTermDefinition(context, termKey),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            displayText,
+            style: GoogleFonts.poppins(
+              color: Colors.white,
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              decoration: TextDecoration.underline,
+            ),
+          ),
+          const SizedBox(width: 2),
+          Icon(
+            Icons.help_outline_rounded,
+            size: 12,
+            color: Colors.white70,
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Muestra la definición de un término del glosario
+  void _showTermDefinition(BuildContext context, String termKey) {
+    final term = GlossaryService.getTerm(termKey);
+    if (term == null) return;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => Container(
+        margin: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.2),
+              blurRadius: 20,
+              offset: const Offset(0, -5),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Handle
+            Container(
+              margin: const EdgeInsets.only(top: 12),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[400],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            
+            // Header
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.green[100],
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      Icons.trending_up,
+                      color: Colors.green[700],
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          term.term,
+                          style: GoogleFonts.poppins(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        if (term.fullName != term.term)
+                          Text(
+                            term.fullName,
+                            style: GoogleFonts.poppins(
+                              fontSize: 14,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
+              ),
+            ),
+            
+            // Badge de categoría
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      term.category,
+                      style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.green[700],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            
+            const SizedBox(height: 16),
+            
+            // Definición
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.info_outline, size: 18, color: Colors.green[700]),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Definición',
+                          style: GoogleFonts.poppins(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.green[700],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      term.definition,
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        height: 1.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            
+            // Ejemplo
+            if (term.example != null) 
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.amber.withOpacity(0.3)),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.lightbulb_outline, color: Colors.amber[700], size: 20),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Ejemplo',
+                              style: GoogleFonts.poppins(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.amber[700],
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              term.example!,
+                              style: GoogleFonts.poppins(
+                                fontSize: 13,
+                                fontStyle: FontStyle.italic,
+                                color: Colors.grey[700],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
   }
 }
 

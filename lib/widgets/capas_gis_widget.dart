@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../services/postgres_gis_service.dart';
+import 'glossary_tooltip.dart';
 
 class CapasGisWidget extends StatefulWidget {
   final double latitude;
@@ -103,20 +104,56 @@ class _CapasGisWidgetState extends State<CapasGisWidget> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Capas GIS PostGIS',
-                        style: GoogleFonts.poppins(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      Row(
+                        children: [
+                          Text(
+                            'Capas GIS ',
+                            style: GoogleFonts.poppins(
+                              color: Colors.white,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: () => showGlossaryModal(context, 'postgis'),
+                            child: Row(
+                              children: [
+                                Text(
+                                  'PostGIS',
+                                  style: GoogleFonts.poppins(
+                                    color: Colors.white,
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                    decoration: TextDecoration.underline,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                GlossaryHelpIcon(
+                                  termKey: 'postgis',
+                                  color: Colors.white70,
+                                  size: 16,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
-                      Text(
-                        '${capas.length} capas espaciales disponibles',
-                        style: GoogleFonts.poppins(
-                          color: Colors.white70,
-                          fontSize: 12,
-                        ),
+                      Row(
+                        children: [
+                          Text(
+                            '${capas.length} capas espaciales disponibles',
+                            style: GoogleFonts.poppins(
+                              color: Colors.white70,
+                              fontSize: 12,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          GlossaryHelpIcon(
+                            termKey: 'geojson',
+                            color: Colors.white60,
+                            size: 12,
+                          ),
+                        ],
                       ),
                     ],
                   ),

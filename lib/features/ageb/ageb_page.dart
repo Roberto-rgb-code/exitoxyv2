@@ -124,7 +124,15 @@ class _AgebPageState extends State<AgebPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('AGEB por CP')),
+      appBar: AppBar(
+        title: Row(
+          children: const [
+            Icon(Icons.grid_on_rounded),
+            SizedBox(width: 8),
+            Text('AGEB por CP'),
+          ],
+        ),
+      ),
       body: Stack(
         children: [
           GoogleMap(

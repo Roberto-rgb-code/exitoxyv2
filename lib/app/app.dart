@@ -13,6 +13,7 @@ import 'package:kitit_v2/features/auth/auth_wrapper.dart';
 // Bottom nav
 import 'package:kitit_v2/widgets/bottom_nav.dart';
 import 'package:kitit_v2/widgets/user_profile_widget.dart';
+import 'package:kitit_v2/widgets/glossary_term_widget.dart';
 
 class KitItApp extends StatelessWidget {
   const KitItApp({super.key});
@@ -114,8 +115,17 @@ class _HomeShellState extends State<HomeShell> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
+          // Botón de Glosario
+          IconButton(
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const GlossaryPage()),
+            ),
+            icon: const Icon(Icons.menu_book_rounded),
+            tooltip: 'Glosario de términos',
+          ),
           const UserProfileWidget(),
-          SizedBox(width: 16),
+          const SizedBox(width: 16),
         ],
       ),
       body: IndexedStack(index: _index, children: _pages),

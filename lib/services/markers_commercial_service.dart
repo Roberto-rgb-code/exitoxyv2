@@ -1,14 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
+import '../app/map_symbols.dart';
+
 class MarkersCommercialService {
   final List<Map<String, dynamic>> commercialData;
 
   MarkersCommercialService(this.commercialData);
 
-  /// Crea marcadores comerciales basado en los datos
-  List<Marker> createCommercialMarkers() {
+  /// Crea marcadores comerciales basado en los datos con iconos personalizados estilo ArcGIS
+  Future<List<Marker>> createCommercialMarkers() async {
     final List<Marker> markers = [];
+    
+    // Crear icono personalizado estilo ArcGIS para Comercios
+    final commercialIcon = await MapSymbols.getCommercialMarker();
 
     for (int i = 0; i < commercialData.length; i++) {
       final data = commercialData[i];
@@ -21,9 +26,10 @@ class MarkersCommercialService {
           double.parse(data['lat'] ?? '0'),
           double.parse(data['lon'] ?? '0'),
         ),
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+        icon: commercialIcon,
+        anchor: Offset(0.5, 0.5),
         infoWindow: InfoWindow(
-          title: data['nombre'] ?? 'Sin nombre',
+          title: '${MapSymbols.commercialEmoji} ${data['nombre'] ?? 'Sin nombre'}',
           snippet: data['descripcion'] ?? '',
         ),
       );

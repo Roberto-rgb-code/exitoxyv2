@@ -4,6 +4,7 @@ import 'package:syncfusion_flutter_charts/charts.dart';
 
 import '../services/denue_service.dart';
 import '../services/market_structure_service.dart';
+import '../services/glossary_service.dart';
 
 class AnalisisMercadoWidget extends StatefulWidget {
   final double latitude;
@@ -156,20 +157,51 @@ class _AnalisisMercadoWidgetState extends State<AnalisisMercadoWidget> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Análisis de Estructura de Mercado',
-                        style: GoogleFonts.poppins(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      Row(
+                        children: [
+                          Text(
+                            'Análisis de Estructura de Mercado',
+                            style: GoogleFonts.poppins(
+                              color: Colors.white,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          _buildHelpIcon(context, 'estructura_mercado'),
+                        ],
                       ),
-                      Text(
-                        'Índice Herfindahl-Hirschman (HHI)',
-                        style: GoogleFonts.poppins(
-                          color: Colors.white70,
-                          fontSize: 12,
-                        ),
+                      Row(
+                        children: [
+                          Text(
+                            'Índice Herfindahl-Hirschman (',
+                            style: GoogleFonts.poppins(
+                              color: Colors.white70,
+                              fontSize: 12,
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: () => _showTermDefinition(context, 'hhi'),
+                            child: Text(
+                              'HHI',
+                              style: GoogleFonts.poppins(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                decoration: TextDecoration.underline,
+                              ),
+                            ),
+                          ),
+                          Text(
+                            ')',
+                            style: GoogleFonts.poppins(
+                              color: Colors.white70,
+                              fontSize: 12,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          _buildHelpIcon(context, 'hhi', color: Colors.white70),
+                        ],
                       ),
                     ],
                   ),
@@ -362,20 +394,24 @@ class _AnalisisMercadoWidgetState extends State<AnalisisMercadoWidget> {
                 Row(
                   children: [
                     Expanded(
-                      child: _buildMetricCard(
+                      child: _buildMetricCardWithHelp(
+                        context,
                         'Número de Empresas',
                         analysis.nFirms.toString(),
                         Icons.business,
                         Colors.blue,
+                        null, // Sin término de glosario
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: _buildMetricCard(
+                      child: _buildMetricCardWithHelp(
+                        context,
                         'HHI',
                         analysis.hhi.toStringAsFixed(2),
                         Icons.trending_up,
                         Colors.orange,
+                        'hhi',
                       ),
                     ),
                   ],
@@ -384,20 +420,24 @@ class _AnalisisMercadoWidgetState extends State<AnalisisMercadoWidget> {
                 Row(
                   children: [
                     Expanded(
-                      child: _buildMetricCard(
+                      child: _buildMetricCardWithHelp(
+                        context,
                         'CR4',
                         '${(analysis.cr4 * 100).toStringAsFixed(1)}%',
                         Icons.pie_chart,
                         Colors.purple,
+                        'cr4',
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: _buildMetricCard(
+                      child: _buildMetricCardWithHelp(
+                        context,
                         'Estructura',
                         analysis.structure,
                         Icons.category,
                         _getStructureColor(analysis.structure),
+                        'estructura_mercado',
                       ),
                     ),
                   ],
@@ -418,7 +458,15 @@ class _AnalisisMercadoWidgetState extends State<AnalisisMercadoWidget> {
     );
   }
 
-  Widget _buildMetricCard(String label, String value, IconData icon, Color color) {
+  /// Construye una tarjeta de métrica con icono de ayuda del glosario
+  Widget _buildMetricCardWithHelp(
+    BuildContext context,
+    String label,
+    String value,
+    IconData icon,
+    Color color,
+    String? glossaryKey,
+  ) {
     return InkWell(
       onTap: () => _showMetricDetailModal(context, label, value, icon, color),
       borderRadius: BorderRadius.circular(12),
@@ -431,7 +479,31 @@ class _AnalisisMercadoWidgetState extends State<AnalisisMercadoWidget> {
         ),
         child: Column(
           children: [
-            Icon(icon, color: color, size: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, color: color, size: 24),
+                if (glossaryKey != null) ...[
+                  const SizedBox(width: 4),
+                  GestureDetector(
+                    onTap: () => _showTermDefinition(context, glossaryKey),
+                    child: Container(
+                      width: 16,
+                      height: 16,
+                      decoration: BoxDecoration(
+                        color: color.withOpacity(0.3),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.help_outline_rounded,
+                        size: 10,
+                        color: color,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
             const SizedBox(height: 8),
             Text(
               value,
@@ -440,15 +512,25 @@ class _AnalisisMercadoWidgetState extends State<AnalisisMercadoWidget> {
                 fontWeight: FontWeight.bold,
                 color: color,
               ),
+              textAlign: TextAlign.center,
             ),
             const SizedBox(height: 4),
-            Text(
-              label,
-              style: GoogleFonts.poppins(
-                fontSize: 11,
-                color: Colors.grey[700],
-              ),
-              textAlign: TextAlign.center,
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Flexible(
+                  child: Text(
+                    label,
+                    style: GoogleFonts.poppins(
+                      fontSize: 11,
+                      color: Colors.grey[700],
+                    ),
+                    textAlign: TextAlign.center,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -1030,6 +1112,173 @@ class _AnalisisMercadoWidgetState extends State<AnalisisMercadoWidget> {
     if (cr4 > 0.6) return 'Alta concentración';
     if (cr4 > 0.4) return 'Concentración moderada';
     return 'Baja concentración';
+  }
+
+  /// Construye un icono de ayuda (?) para términos del glosario
+  Widget _buildHelpIcon(BuildContext context, String termKey, {Color? color}) {
+    return GestureDetector(
+      onTap: () => _showTermDefinition(context, termKey),
+      child: Container(
+        width: 18,
+        height: 18,
+        decoration: BoxDecoration(
+          color: (color ?? Colors.blue[700])!.withOpacity(0.2),
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: (color ?? Colors.blue[700])!.withOpacity(0.5),
+            width: 1,
+          ),
+        ),
+        child: Icon(
+          Icons.help_outline_rounded,
+          size: 12,
+          color: color ?? Colors.blue[700],
+        ),
+      ),
+    );
+  }
+
+  /// Muestra la definición de un término del glosario
+  void _showTermDefinition(BuildContext context, String termKey) {
+    final term = GlossaryService.getTerm(termKey);
+    if (term == null) return;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => Container(
+        margin: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.2),
+              blurRadius: 20,
+              offset: const Offset(0, -5),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Handle
+            Container(
+              margin: const EdgeInsets.only(top: 12),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[400],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            
+            // Header
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.blue[100],
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      Icons.info_outline,
+                      color: Colors.blue[700],
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          term.term,
+                          style: GoogleFonts.poppins(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        if (term.fullName != term.term)
+                          Text(
+                            term.fullName,
+                            style: GoogleFonts.poppins(
+                              fontSize: 14,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
+              ),
+            ),
+            
+            // Definición
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Text(
+                  term.definition,
+                  style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    height: 1.5,
+                  ),
+                ),
+              ),
+            ),
+            
+            // Ejemplo
+            if (term.example != null) 
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.amber.withOpacity(0.3)),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.lightbulb_outline, color: Colors.amber[700], size: 20),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          term.example!,
+                          style: GoogleFonts.poppins(
+                            fontSize: 13,
+                            fontStyle: FontStyle.italic,
+                            color: Colors.grey[700],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
   }
 }
 

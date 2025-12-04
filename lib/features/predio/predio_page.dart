@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
+import '../../app/map_symbols.dart';
 import '../../services/predio_service.dart';
 
 class PredioPage extends StatefulWidget {
@@ -34,12 +35,15 @@ class _PredioPageState extends State<PredioPage> {
       ),
     );
 
+    // Crear icono personalizado estilo ArcGIS para selección
+    final selectionIcon = await MapSymbols.getSelectionMarker();
+    
     setState(() {
       _marker = Marker(
         markerId: const MarkerId('predio'),
         position: p,
-        anchor: const Offset(0.5, 1),
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+        anchor: const Offset(0.5, 0.5),
+        icon: selectionIcon,
       );
     });
 
@@ -74,7 +78,15 @@ class _PredioPageState extends State<PredioPage> {
     if (_marker != null) markers.add(_marker!);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Predio')),
+      appBar: AppBar(
+        title: Row(
+          children: const [
+            Icon(Icons.domain),
+            SizedBox(width: 8),
+            Text('Predio'),
+          ],
+        ),
+      ),
       body: GoogleMap(
         initialCameraPosition: _camera,
         onMapCreated: (c) => _map = c,

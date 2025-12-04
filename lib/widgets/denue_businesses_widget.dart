@@ -6,6 +6,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../services/denue_service.dart';
 import '../services/denue_repository.dart';
 import 'denue_detail_modal.dart';
+import 'glossary_tooltip.dart';
 
 class DenueBusinessesWidget extends StatefulWidget {
   final double latitude;
@@ -112,20 +113,57 @@ class _DenueBusinessesWidgetState extends State<DenueBusinessesWidget> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Negocios DENUE',
-                        style: GoogleFonts.poppins(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
+                      Row(
+                        children: [
+                          Text(
+                            'Negocios ',
+                            style: GoogleFonts.poppins(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: () => showGlossaryModal(context, 'denue'),
+                            child: Row(
+                              children: [
+                                Text(
+                                  'DENUE',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                    decoration: TextDecoration.underline,
+                                    decorationColor: Colors.white70,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                GlossaryHelpIcon(
+                                  termKey: 'denue',
+                                  color: Colors.white70,
+                                  size: 16,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
-                      Text(
-                        '${_businesses.length} negocios encontrados',
-                        style: GoogleFonts.poppins(
-                          fontSize: 14,
-                          color: Colors.white.withOpacity(0.9),
-                        ),
+                      Row(
+                        children: [
+                          Text(
+                            '${_businesses.length} negocios encontrados',
+                            style: GoogleFonts.poppins(
+                              fontSize: 14,
+                              color: Colors.white.withOpacity(0.9),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          GlossaryHelpIcon(
+                            termKey: 'densidad_negocios',
+                            color: Colors.white60,
+                            size: 12,
+                          ),
+                        ],
                       ),
                     ],
                   ),

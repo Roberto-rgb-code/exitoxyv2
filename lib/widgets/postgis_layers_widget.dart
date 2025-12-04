@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../features/explore/explore_controller.dart';
+import 'glossary_tooltip.dart';
 
 /// Widget para controlar las capas PostGIS en el mapa
 class PostgisLayersWidget extends StatelessWidget {
@@ -33,14 +34,41 @@ class PostgisLayersWidget extends StatelessWidget {
                   children: [
                     Icon(Icons.layers, color: Colors.teal[700], size: 20),
                     const SizedBox(width: 8),
-                    const Expanded(
-                      child: Text(
-                        'Capas PostGIS',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87,
-                        ),
+                    Expanded(
+                      child: Row(
+                        children: [
+                          const Text(
+                            'Capas ',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: () => showGlossaryModal(context, 'postgis'),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  'PostGIS',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.teal[700],
+                                    decoration: TextDecoration.underline,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                GlossaryHelpIcon(
+                                  termKey: 'postgis',
+                                  color: Colors.teal[700],
+                                  size: 14,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     IconButton(
@@ -65,6 +93,7 @@ class PostgisLayersWidget extends StatelessWidget {
                   color: Colors.blue,
                   title: 'Colonias',
                   subtitle: 'Datos demográficos',
+                  glossaryKey: 'densidad_poblacional',
                   isVisible: controller.showPostgisAgebLayer,
                   onToggle: () async {
                     await controller.loadPostgisLayers(
@@ -86,6 +115,7 @@ class PostgisLayersWidget extends StatelessWidget {
                   color: Colors.purple,
                   title: 'Transporte',
                   subtitle: 'Estaciones y rutas',
+                  glossaryKey: 'isocronas',
                   isVisible: controller.showPostgisTransporteLayer,
                   onToggle: () async {
                     await controller.loadPostgisLayers(
@@ -107,6 +137,7 @@ class PostgisLayersWidget extends StatelessWidget {
                   color: Colors.orange,
                   title: 'Rutas',
                   subtitle: 'Red de transporte',
+                  glossaryKey: 'buffer',
                   isVisible: controller.showPostgisRutasLayer,
                   onToggle: () async {
                     await controller.loadPostgisLayers(
@@ -128,6 +159,7 @@ class PostgisLayersWidget extends StatelessWidget {
                   color: Colors.red,
                   title: 'Líneas',
                   subtitle: 'Transporte masivo',
+                  glossaryKey: 'geojson',
                   isVisible: controller.showPostgisLineasLayer,
                   onToggle: () async {
                     await controller.loadPostgisLayers(
@@ -153,6 +185,7 @@ class PostgisLayersWidget extends StatelessWidget {
     required Color color,
     required String title,
     required String subtitle,
+    required String glossaryKey,
     required bool isVisible,
     required VoidCallback onToggle,
   }) {
@@ -183,13 +216,28 @@ class PostgisLayersWidget extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: isVisible ? Colors.black87 : Colors.grey[600],
-                    ),
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          title,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: isVisible ? Colors.black87 : Colors.grey[600],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      GestureDetector(
+                        onTap: () => showGlossaryModal(context, glossaryKey),
+                        child: GlossaryHelpIcon(
+                          termKey: glossaryKey,
+                          color: isVisible ? color : Colors.grey[400],
+                          size: 14,
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 2),
                   Text(
@@ -213,4 +261,3 @@ class PostgisLayersWidget extends StatelessWidget {
     );
   }
 }
-

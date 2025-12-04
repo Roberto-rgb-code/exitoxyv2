@@ -1,6 +1,7 @@
 import "package:flutter/material.dart";
 import "package:provider/provider.dart";
 import "../explore_controller.dart";
+import "../../../widgets/glossary_tooltip.dart";
 
 class ActivityPrompt extends StatefulWidget {
   const ActivityPrompt({super.key});
@@ -181,6 +182,17 @@ class _ActivityPromptState extends State<ActivityPrompt> {
                         decoration: InputDecoration(
                           hintText: 'Actividad económica',
                           border: InputBorder.none,
+                          prefixIcon: GestureDetector(
+                            onTap: () => showGlossaryModal(context, 'denue'),
+                            child: Padding(
+                              padding: const EdgeInsets.all(12),
+                              child: GlossaryHelpIcon(
+                                termKey: 'denue',
+                                color: Colors.blue[600],
+                                size: 18,
+                              ),
+                            ),
+                          ),
                           suffixIcon: _isValidating
                               ? const SizedBox(
                                   width: 16,

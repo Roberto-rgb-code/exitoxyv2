@@ -4,6 +4,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:provider/provider.dart';
 
 import '../services/rentas_service.dart';
+import '../app/map_symbols.dart';
 import '../features/explore/explore_controller.dart';
 
 /// Widget para mostrar rentas en el mapa
@@ -65,7 +66,7 @@ class _RentasWidgetState extends State<RentasWidget> {
         }
         
         print('📍 Agregando marcadores al mapa...');
-        _addRentasMarkers(controller, rentas);
+        await _addRentasMarkers(controller, rentas);
         
         setState(() {
           _rentas = rentas;
@@ -102,14 +103,17 @@ class _RentasWidgetState extends State<RentasWidget> {
     }
   }
 
-  void _addRentasMarkers(ExploreController controller, List<RentaData> rentas) {
-    print('📍 Agregando ${rentas.length} marcadores de rentas al mapa...');
+  Future<void> _addRentasMarkers(ExploreController controller, List<RentaData> rentas) async {
+    print('📍 Agregando ${rentas.length} marcadores de rentas al mapa (estilo ArcGIS)...');
     
     // Limpiar marcadores anteriores si existen
     for (final markerId in _addedMarkerIds) {
       controller.removeMarker(markerId);
     }
     _addedMarkerIds.clear();
+
+    // Crear icono personalizado estilo ArcGIS para Rentas
+    final rentaIcon = await MapSymbols.getRentaMarker();
 
     for (final renta in rentas) {
       try {
@@ -120,9 +124,10 @@ class _RentasWidgetState extends State<RentasWidget> {
         final marker = Marker(
           markerId: markerId,
           position: LatLng(renta.latitude, renta.longitude),
-          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueViolet),
+          icon: rentaIcon,
+          anchor: const Offset(0.5, 0.5),
           infoWindow: InfoWindow(
-            title: renta.nombre ?? 'Propiedad en Renta',
+            title: '${MapSymbols.rentaEmoji} ${renta.nombre ?? 'Propiedad en Renta'}',
             snippet: _buildInfoWindowSnippet(renta),
           ),
           onTap: () {

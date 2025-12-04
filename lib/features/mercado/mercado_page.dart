@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../explore/explore_controller.dart';
 import '../../widgets/mercado_elasticidad_widget.dart';
+import '../../widgets/glossary_term_widget.dart';
 
 /// Página de Análisis de Elasticidad de Mercado
 class MercadoPage extends StatelessWidget {
@@ -18,9 +19,25 @@ class MercadoPage extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Elasticidad de Mercado'),
+        title: Row(
+          children: const [
+            Icon(Icons.trending_up_rounded),
+            SizedBox(width: 8),
+            Text('Elasticidad de Mercado'),
+          ],
+        ),
         backgroundColor: Colors.green[700],
         foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const GlossaryPage()),
+            ),
+            icon: const Icon(Icons.menu_book_rounded),
+            tooltip: 'Glosario de términos',
+          ),
+        ],
       ),
       body: MercadoElasticidadWidget(
         latitude: lat,

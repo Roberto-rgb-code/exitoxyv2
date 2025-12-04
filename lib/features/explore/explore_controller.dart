@@ -6,6 +6,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 
+import '../../app/map_symbols.dart';
 import '../../shared/polygons_methods.dart';
 import '../../services/ageb_api_service.dart';
 import '../../services/mysql_connector.dart';
@@ -129,8 +130,14 @@ class ExploreController extends ChangeNotifier {
   Map<String, dynamic>? selectedCommercialData;
   LatLng? selectedCommercialPosition;
 
-  ExploreController() {
-    ensureLocationReady();
+  /// Controlador principal de la experiencia de exploración.
+  ///
+  /// [autoEnsureLocation] se deja en `true` para la app normal, pero se puede
+  /// desactivar en tests para evitar depender de plugins de ubicación.
+  ExploreController({bool autoEnsureLocation = true}) {
+    if (autoEnsureLocation) {
+      ensureLocationReady();
+    }
     customInfoWindowController = CustomInfoWindowController();
   }
 
@@ -311,11 +318,12 @@ class ExploreController extends ChangeNotifier {
         'num_cajones': row.colByName('num_cajones')?.toString() ?? '0',
       }).toList();
 
-      // Crear marcadores comerciales
+      // Crear marcadores comerciales (sólo datos; la simbología se define aquí)
       final markersService = MarkersCommercialService(commercialData);
       final markers = markersService.createCommercialMarkers();
 
-      // Agregar marcadores al mapa
+      // Agregar marcadores al mapa con iconos personalizados estilo ArcGIS
+      final commercialIcon = await MapSymbols.getCommercialMarker();
       for (int i = 0; i < commercialData.length; i++) {
         final data = commercialData[i];
         final markerId = MarkerId('commercial_$i');
@@ -325,7 +333,12 @@ class ExploreController extends ChangeNotifier {
             double.parse(data['lat'] ?? '0'),
             double.parse(data['lon'] ?? '0'),
           ),
-          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+          icon: commercialIcon,
+          anchor: const Offset(0.5, 0.5),
+          infoWindow: InfoWindow(
+            title: '${MapSymbols.commercialEmoji} ${data['nombre'] ?? 'Comercio'}',
+            snippet: data['descripcion'] ?? '',
+          ),
           onTap: () => _showCommercialInfo(data),
         );
         _markers[markerId] = marker;
@@ -369,13 +382,14 @@ class ExploreController extends ChangeNotifier {
   Future<void> _addOrMoveSelectionMarker(LatLng p) async {
     const id = MarkerId('selection');
     
-    // Crear un marcador más visible como en el código que funciona
+    // Crear un marcador de selección estilo ArcGIS (círculo con icono)
+    final icon = await MapSymbols.getSelectionMarker();
     final marker = Marker(
       markerId: id,
       position: p,
-      anchor: const Offset(0.5, 1),
+      anchor: const Offset(0.5, 0.5),
       consumeTapEvents: false,
-      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+      icon: icon,
       zIndex: 2,
     );
     _markers[id] = marker;
@@ -394,6 +408,9 @@ class ExploreController extends ChangeNotifier {
       // Limpiar marcadores comerciales existentes
       _markers.removeWhere((key, marker) => key.value.startsWith('commercial_'));
       
+      // Crear icono personalizado estilo ArcGIS para Comercios
+      final commercialIcon = await MapSymbols.getCommercialMarker();
+      
       // Crear nuevos marcadores filtrados
       for (int i = 0; i < filteredData.length; i++) {
         final data = filteredData[i];
@@ -404,7 +421,12 @@ class ExploreController extends ChangeNotifier {
             double.parse(data['lat'] ?? '0'),
             double.parse(data['lon'] ?? '0'),
           ),
-          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+          icon: commercialIcon,
+          anchor: const Offset(0.5, 0.5),
+          infoWindow: InfoWindow(
+            title: '${MapSymbols.commercialEmoji} ${data['nombre'] ?? 'Comercio'}',
+            snippet: data['descripcion'] ?? '',
+          ),
           onTap: () => _showCommercialInfo(data),
         );
         _markers[markerId] = marker;
@@ -680,9 +702,9 @@ class ExploreController extends ChangeNotifier {
       _markers.removeWhere((key, marker) => key.value.startsWith('denue_'));
       print('🧹 Marcadores DENUE anteriores eliminados: $removedCount');
 
-      // Color azul fijo para Actividades Económicas
-      double markerHue = BitmapDescriptor.hueBlue;
-      print('🎨 Color de marcadores DENUE: Azul (fijo)');
+      // Color azul fijo para Actividades Económicas (simbología centralizada)
+      double markerHue = MapSymbols.denueHue;
+      print('🎨 Color de marcadores DENUE: Azul (fijo, MapSymbols.denueHue)');
 
       // Crear marcadores
       print('🎨 Creando ${entries.length} marcadores DENUE...');
@@ -714,7 +736,7 @@ class ExploreController extends ChangeNotifier {
             position: entry.position,
             icon: BitmapDescriptor.defaultMarkerWithHue(markerHue),
             infoWindow: InfoWindow(
-              title: '🏢 ${displayName.isNotEmpty ? displayName : entry.activity}',
+              title: '${MapSymbols.denueEmoji} ${displayName.isNotEmpty ? displayName : entry.activity}',
               snippet: '📍 ${entry.activity} • Tap para más información',
             ),
             onTap: () => _showDenueInfoWindow(entry),
@@ -793,8 +815,9 @@ class ExploreController extends ChangeNotifier {
         print('⚠️ Mostrando solo ${delitosToShow.length} de ${delitos.length} delitos para optimizar rendimiento');
       }
 
-      // Crear marcadores de delitos con icono distintivo (rojo violeta)
-      print('🔴 Creando ${delitosToShow.length} marcadores de delitos...');
+      // Crear icono personalizado estilo ArcGIS para Delitos
+      final delitoIcon = await MapSymbols.getDelitoMarker();
+      print('🔴 Creando ${delitosToShow.length} marcadores de delitos (estilo ArcGIS)...');
       for (int i = 0; i < delitosToShow.length; i++) {
         final delito = delitosToShow[i];
         final markerId = MarkerId('delito_$i');
@@ -806,10 +829,10 @@ class ExploreController extends ChangeNotifier {
         final marker = Marker(
           markerId: markerId,
           position: LatLng(delito.y, delito.x), // y=latitud, x=longitud
-          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
-          alpha: 0.8, // Transparencia para distinguir de otros marcadores
+          icon: delitoIcon,
+          anchor: const Offset(0.5, 0.5),
           infoWindow: InfoWindow(
-            title: '⚠️ ${delito.delito}',
+            title: '${MapSymbols.delitoEmoji} ${delito.delito}',
             snippet: '📅 ${delito.fecha} • Tap para detalles',
           ),
           onTap: () => _showDelitoInfoWindow(delito),
@@ -1064,8 +1087,8 @@ class ExploreController extends ChangeNotifier {
       
       print('✅ Google Places: ${_googlePlacesData.length} lugares encontrados');
       
-      // Crear marcadores
-      _createGooglePlacesMarkers();
+      // Crear marcadores con iconos personalizados estilo ArcGIS
+      await _createGooglePlacesMarkers();
       
       _showGooglePlacesMarkers = true;
       notifyListeners();
@@ -1075,10 +1098,13 @@ class ExploreController extends ChangeNotifier {
     }
   }
 
-  /// Crea marcadores de Google Places
-  void _createGooglePlacesMarkers() {
+  /// Crea marcadores de Google Places con iconos personalizados estilo ArcGIS
+  Future<void> _createGooglePlacesMarkers() async {
     // Limpiar marcadores anteriores de Google Places
     _markers.removeWhere((key, marker) => key.value.startsWith('places_'));
+    
+    // Crear icono personalizado estilo ArcGIS para Propiedades
+    final placeIcon = await MapSymbols.getPlaceMarker();
     
     for (int i = 0; i < _googlePlacesData.length; i++) {
       final place = _googlePlacesData[i];
@@ -1087,9 +1113,10 @@ class ExploreController extends ChangeNotifier {
       final marker = Marker(
         markerId: markerId,
         position: LatLng(place.latitude, place.longitude),
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
+        icon: placeIcon,
+        anchor: const Offset(0.5, 0.5),
         infoWindow: InfoWindow(
-          title: '🏠 ${place.title}',
+          title: '${MapSymbols.placesEmoji} ${place.title}',
           snippet: '💰 \$${place.price.toStringAsFixed(0)} • ${place.category}',
         ),
         onTap: () => _onGooglePlaceMarkerTap(place),
@@ -1098,7 +1125,7 @@ class ExploreController extends ChangeNotifier {
       _markers[markerId] = marker;
     }
     
-    print('✅ Google Places: ${_googlePlacesData.length} marcadores creados');
+    print('✅ Google Places: ${_googlePlacesData.length} marcadores creados (estilo ArcGIS)');
   }
 
   /// Maneja el tap en marcadores de Google Places
@@ -1108,11 +1135,11 @@ class ExploreController extends ChangeNotifier {
   }
 
   /// Alterna la visibilidad de marcadores de Google Places
-  void toggleGooglePlacesMarkers() {
+  Future<void> toggleGooglePlacesMarkers() async {
     _showGooglePlacesMarkers = !_showGooglePlacesMarkers;
     
     if (_showGooglePlacesMarkers) {
-      _createGooglePlacesMarkers();
+      await _createGooglePlacesMarkers();
     } else {
       _markers.removeWhere((key, marker) => key.value.startsWith('places_'));
     }
@@ -1277,6 +1304,9 @@ class ExploreController extends ChangeNotifier {
       final estacionesData = await _postgisService.getEstacionesTransporte(limit: 10000);
       print('✅ Estaciones: ${estacionesData.length} cargadas (TODAS)');
       
+      // Crear icono personalizado estilo ArcGIS para Estaciones
+      final stationIcon = await MapSymbols.getStationMarker();
+      
       // Crear marcadores de estaciones
       _markers.removeWhere((key, marker) => key.value.startsWith('postgis_estacion_'));
       for (int i = 0; i < estacionesData.length; i++) {
@@ -1288,9 +1318,10 @@ class ExploreController extends ChangeNotifier {
           final marker = Marker(
             markerId: markerId,
             position: LatLng(coords['latitude']!, coords['longitude']!),
-            icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueViolet),
+            icon: stationIcon,
+            anchor: const Offset(0.5, 0.5),
             infoWindow: InfoWindow(
-              title: '🚉 ${estacion.nombre ?? "Estación"}',
+              title: '${MapSymbols.stationEmoji} ${estacion.nombre ?? "Estación"}',
               snippet: '${estacion.sistema ?? ""} • ${estacion.estado ?? ""}',
             ),
             onTap: () => _showEstacionInfoWindow(estacion),
