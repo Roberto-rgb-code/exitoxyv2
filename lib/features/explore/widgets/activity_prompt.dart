@@ -12,8 +12,7 @@ class ActivityPrompt extends StatefulWidget {
 
 class _ActivityPromptState extends State<ActivityPrompt> {
   final _activityController = TextEditingController();
-  bool _isValidating = false;
-  bool _isValidActivity = false;
+  bool _isAnalyzing = false;
 
   @override
   void dispose() {
@@ -21,109 +20,112 @@ class _ActivityPromptState extends State<ActivityPrompt> {
     super.dispose();
   }
 
-  Future<void> _validateActivity() async {
+  /// Análisis completo con un solo click
+  /// Busca: DENUE (negocios), Delitos, Propiedades, Concentración
+  Future<void> _analyzeAll() async {
     final activity = _activityController.text.trim();
-    if (activity.isEmpty) return;
-
-    setState(() => _isValidating = true);
-    
-    try {
-      // Validar la actividad económica
-      // Por ahora, asumimos que cualquier texto no vacío es válido
-      // Podrías agregar validación con DENUE API aquí
-      await Future.delayed(const Duration(milliseconds: 500));
-      
-      if (mounted) {
-        setState(() => _isValidActivity = true);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('✓ Actividad válida: $activity'),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 2),
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _isValidActivity = false);
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isValidating = false);
-      }
+    if (activity.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Escribe una actividad económica (ej: abarrotes, farmacia, restaurante)'),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return;
     }
-  }
-
-  Future<void> _analyzeConcentration() async {
-    final activity = _activityController.text.trim();
-    if (activity.isEmpty) return;
 
     final controller = context.read<ExploreController>();
     
     if (controller.lastPoint == null || controller.activeCP == null) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Por favor selecciona una zona primero (tap en el mapa o busca una dirección)'),
-            backgroundColor: Colors.orange,
-            duration: Duration(seconds: 4),
-          ),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('📍 Primero selecciona una zona (tap en el mapa o busca una dirección)'),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 4),
+        ),
+      );
       return;
     }
     
+    setState(() => _isAnalyzing = true);
+    
     try {
-      setState(() => _isValidating = true);
+      print('🚀 ANÁLISIS COMPLETO para: "$activity"');
+      print('📍 Ubicación: ${controller.lastPoint}');
+      print('📍 CP: ${controller.activeCP}');
       
-      print('🚀 Iniciando análisis completo para: "$activity"');
+      // Mostrar snackbar de inicio
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text('Buscando "$activity" - negocios, delitos, propiedades...'),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.blue,
+            duration: const Duration(seconds: 10),
+          ),
+        );
+      }
       
-      // 1. Analizar la concentración (esto también genera recomendaciones y muestra marcadores)
+      // Ejecutar análisis completo
       await controller.analyzeConcentration(activity);
       
-      print('✅ analyzeConcentration completado, verificando marcadores...');
-      
-      // Verificar que los marcadores se hayan agregado
-      final markersCount = controller.allMarkers().length;
+      // Verificar resultados
       final denueCount = controller.allMarkers().where((m) => m.markerId.value.startsWith('denue_')).length;
+      final delitosCount = controller.allMarkers().where((m) => m.markerId.value.startsWith('delito_')).length;
+      final placesCount = controller.allMarkers().where((m) => m.markerId.value.startsWith('places_')).length;
       
-      print('📊 Total marcadores después del análisis: $markersCount');
-      print('📊 Marcadores DENUE: $denueCount');
+      print('📊 Resultados:');
+      print('   - DENUE: $denueCount negocios');
+      print('   - Delitos: $delitosCount reportes');
+      print('   - Propiedades: $placesCount');
       
-      setState(() => _isValidActivity = true);
-      
+      // Mostrar resultado exitoso
       if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('✅ Análisis completado: $activity'),
+                Text('✅ Análisis completado: "$activity"', style: const TextStyle(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 4),
-                Text(
-                  '📍 $denueCount marcadores DENUE mostrados en el mapa',
-                  style: TextStyle(fontSize: 12),
-                ),
-                Text(
-                  '🎯 Ver recomendaciones abajo',
-                  style: TextStyle(fontSize: 12),
-                ),
+                Text('🏪 $denueCount negocios DENUE', style: const TextStyle(fontSize: 12)),
+                Text('🚨 $delitosCount reportes de delitos', style: const TextStyle(fontSize: 12)),
+                if (placesCount > 0)
+                  Text('🏠 $placesCount propiedades', style: const TextStyle(fontSize: 12))
+                else
+                  const Text('🏠 Propiedades: API no configurada', style: TextStyle(fontSize: 12, color: Colors.white70)),
+                const Text('📊 HHI/CR4 calculados', style: TextStyle(fontSize: 12)),
               ],
             ),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 4),
+            backgroundColor: Colors.green[700],
+            duration: const Duration(seconds: 5),
           ),
         );
       }
-    } catch (e, stackTrace) {
-      print('❌ ERROR en _analyzeConcentration: $e');
-      print('📚 Stack trace: $stackTrace');
-      setState(() => _isValidActivity = false);
+    } catch (e) {
+      print('❌ ERROR en análisis: $e');
       if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('❌ Error analizando "$activity": ${e.toString()}'),
+            content: Text('❌ Error: ${e.toString().replaceAll('Exception: ', '')}'),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 5),
           ),
@@ -131,7 +133,7 @@ class _ActivityPromptState extends State<ActivityPrompt> {
       }
     } finally {
       if (mounted) {
-        setState(() => _isValidating = false);
+        setState(() => _isAnalyzing = false);
       }
     }
   }
@@ -147,121 +149,139 @@ class _ActivityPromptState extends State<ActivityPrompt> {
         return Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Botón para análisis de concentración
+            // Botón para ocultar capas de concentración
             if (controller.showConcentrationLayer)
-              FloatingActionButton(
-                onPressed: controller.hideConcentrationLayer,
-                backgroundColor: Colors.red,
-                child: const Icon(Icons.visibility_off),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: FloatingActionButton.small(
+                  onPressed: controller.hideConcentrationLayer,
+                  backgroundColor: Colors.red,
+                  child: const Icon(Icons.visibility_off, size: 20),
+                ),
               ),
             
-            const SizedBox(height: 8),
-            
-            // Input de actividad económica
+            // Input y botón de análisis
             Container(
-              width: 200,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              width: 220,
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(25),
+                borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
+                    color: Colors.black.withOpacity(0.15),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
                   ),
                 ],
               ),
-              child: Stack(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Column(
-                    mainAxisSize: MainAxisSize.min,
+                  // Header
+                  Row(
                     children: [
-                      TextField(
-                        controller: _activityController,
-                        decoration: InputDecoration(
-                          hintText: 'Actividad económica',
-                          border: InputBorder.none,
-                          prefixIcon: GestureDetector(
-                            onTap: () => showGlossaryModal(context, 'denue'),
-                            child: Padding(
-                              padding: const EdgeInsets.all(12),
-                              child: GlossaryHelpIcon(
-                                termKey: 'denue',
-                                color: Colors.blue[600],
-                                size: 18,
-                              ),
-                            ),
+                      Icon(Icons.analytics, color: Colors.blue[700], size: 20),
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Text(
+                          'Analizar zona',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
                           ),
-                          suffixIcon: _isValidating
-                              ? const SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
-                                )
-                              : IconButton(
-                                  icon: Icon(
-                                    _isValidActivity ? Icons.check_circle : Icons.search,
-                                    color: _isValidActivity ? Colors.green : Colors.grey,
-                                  ),
-                                  onPressed: _validateActivity,
-                                ),
                         ),
-                        onChanged: (value) {
-                          setState(() => _isValidActivity = false);
-                        },
-                        onSubmitted: (_) => _validateActivity(),
                       ),
-                      
-                      if (_isValidActivity) ...[
-                        const SizedBox(height: 8),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton.icon(
-                            onPressed: _analyzeConcentration,
-                            icon: const Icon(Icons.analytics, size: 16),
-                            label: const Text('Analizar'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.blue,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 8),
-                            ),
-                          ),
-                        ),
-                      ],
+                      GlossaryHelpIcon(
+                        termKey: 'denue',
+                        color: Colors.grey[500],
+                        size: 16,
+                      ),
                     ],
                   ),
-                  // Botón de cerrar
-                  Positioned(
-                    top: 0,
-                    right: 0,
-                    child: Material(
-                      color: Colors.black.withOpacity(0.5),
-                      shape: const CircleBorder(),
-                      child: InkWell(
-                        onTap: () {
-                          // Solo resetear el widget, NO limpiar los marcadores
-                          _activityController.clear();
-                          setState(() {
-                            _isValidActivity = false;
-                          });
-                        },
-                        borderRadius: BorderRadius.circular(20),
-                        child: Container(
-                          width: 28,
-                          height: 28,
-                          decoration: const BoxDecoration(
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.close,
-                            color: Colors.white,
-                            size: 20,
-                          ),
+                  
+                  const SizedBox(height: 12),
+                  
+                  // Campo de texto
+                  TextField(
+                    controller: _activityController,
+                    enabled: !_isAnalyzing,
+                    textInputAction: TextInputAction.search,
+                    onSubmitted: (_) => _analyzeAll(),
+                    decoration: InputDecoration(
+                      hintText: 'ej: abarrotes, farmacia...',
+                      hintStyle: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey[400],
+                      ),
+                      filled: true,
+                      fillColor: Colors.grey[50],
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey[300]!),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey[300]!),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.blue[400]!, width: 2),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      isDense: true,
+                    ),
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                  
+                  const SizedBox(height: 12),
+                  
+                  // Botón de análisis - UN SOLO CLICK
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: _isAnalyzing ? null : _analyzeAll,
+                      icon: _isAnalyzing
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              ),
+                            )
+                          : const Icon(Icons.search, size: 18),
+                      label: Text(
+                        _isAnalyzing ? 'Buscando...' : 'Buscar Todo',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
                         ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue[600],
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 2,
                       ),
                     ),
                   ),
+                  
+                  // Info de lo que se busca
+                  if (!_isAnalyzing) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      '🏪 Negocios • 🚨 Delitos • 🏠 Propiedades',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.grey[500],
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
                 ],
               ),
             ),

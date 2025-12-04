@@ -563,6 +563,9 @@ class ExploreController extends ChangeNotifier {
     currentActivity = activity;
     print('🔍 Analizando concentración para: $activity en CP: $activeCP');
     
+    // Limpiar entradas de cache expiradas o con datos de fallback
+    CacheService.cleanExpired();
+    
     // Verificar cache
     final cached = CacheService.get(activity, activeCP!);
     if (cached != null) {
@@ -1055,46 +1058,57 @@ class ExploreController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Carga marcadores de Google Places
+  /// Carga marcadores de Google Places (Propiedades en renta/venta)
   Future<void> loadGooglePlacesMarkers({
     double radius = 5000,
-    String type = 'lodging',
-    String keyword = 'renta departamento casa',
   }) async {
+    // Verificar si Google Places está configurado
+    if (!GooglePlacesMarketplaceService.isConfigured) {
+      print('⚠️ Google Places API no configurada - Saltando propiedades');
+      _googlePlacesData = [];
+      _showGooglePlacesMarkers = false;
+      return;
+    }
+    
     try {
-      print('🔍 Cargando marcadores de Google Places...');
+      print('🏠 Cargando propiedades (Google Places)...');
       
-      // Obtener ubicación actual del mapa
-      final center = await mapCtrl?.getVisibleRegion();
-      if (center == null) {
-        print('❌ No se pudo obtener la región visible del mapa');
+      // Determinar coordenadas
+      double lat;
+      double lng;
+      
+      if (lastPoint != null) {
+        lat = lastPoint!.latitude;
+        lng = lastPoint!.longitude;
+        print('📍 Coordenadas: $lat, $lng');
+      } else {
+        print('⚠️ No hay ubicación seleccionada para buscar propiedades');
         return;
       }
       
-      final lat = (center.northeast.latitude + center.southwest.latitude) / 2;
-      final lng = (center.northeast.longitude + center.southwest.longitude) / 2;
-      
-      print('📍 Centro del mapa: $lat, $lng');
-      
-      // Buscar propiedades con Google Places
-      _googlePlacesData = await GooglePlacesMarketplaceService.searchProperties(
+      // Buscar propiedades con Google Places (sin datos ficticios)
+      _googlePlacesData = await GooglePlacesMarketplaceService.searchComprehensive(
         latitude: lat,
         longitude: lng,
         radius: radius,
-        type: type,
-        keyword: keyword,
+        limit: 15,
       );
       
-      print('✅ Google Places: ${_googlePlacesData.length} lugares encontrados');
+      if (_googlePlacesData.isNotEmpty) {
+        print('✅ Propiedades reales encontradas: ${_googlePlacesData.length}');
+        await _createGooglePlacesMarkers();
+        _showGooglePlacesMarkers = true;
+      } else {
+        print('ℹ️ No hay propiedades disponibles (API sin resultados o no configurada)');
+        _showGooglePlacesMarkers = false;
+      }
       
-      // Crear marcadores con iconos personalizados estilo ArcGIS
-      await _createGooglePlacesMarkers();
-      
-      _showGooglePlacesMarkers = true;
       notifyListeners();
       
     } catch (e) {
-      print('❌ Error cargando Google Places: $e');
+      print('❌ Error cargando propiedades: $e');
+      _googlePlacesData = [];
+      _showGooglePlacesMarkers = false;
     }
   }
 

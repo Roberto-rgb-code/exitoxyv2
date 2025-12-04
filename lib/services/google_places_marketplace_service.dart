@@ -1,32 +1,35 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../models/marketplace_listing.dart';
+import '../core/config.dart';
 
 class GooglePlacesMarketplaceService {
   static const String _baseUrl = 'https://maps.googleapis.com/maps/api/place';
-  String? _apiKey;
 
-  GooglePlacesMarketplaceService() {
-    _apiKey = dotenv.env['GOOGLE_PLACES_API_KEY'];
+  /// Verifica si la API de Google Places está configurada correctamente
+  static bool get isConfigured {
+    return Config.hasValidGooglePlacesKey;
   }
 
   /// Buscar propiedades en renta usando Google Places API
   static Future<List<MarketplaceListing>> searchProperties({
     required double latitude,
     required double longitude,
-    double radius = 5000, // metros
-    String type = 'lodging', // tipos: lodging, real_estate_agency, etc.
-    String keyword = 'renta departamento casa',
+    double radius = 5000,
+    String type = 'real_estate_agency',
+    String keyword = 'renta departamento casa inmobiliaria',
     int limit = 20,
   }) async {
-    try {
-      final apiKey = dotenv.env['GOOGLE_PLACES_API_KEY'];
-      if (apiKey == null || apiKey.isEmpty) {
-        print('❌ Google Places API Key no configurada');
-        return [];
-      }
+    // Verificar si la API está configurada
+    if (!isConfigured) {
+      print('⚠️ Google Places API Key NO configurada');
+      print('   Para habilitar propiedades, configura GOOGLE_PLACES_API_KEY en .env');
+      return [];
+    }
 
+    try {
+      final apiKey = Config.googlePlacesApiKey;
+      
       final url = '$_baseUrl/nearbysearch/json';
       final params = {
         'location': '$latitude,$longitude',
@@ -38,236 +41,190 @@ class GooglePlacesMarketplaceService {
 
       print('🔍 Buscando propiedades con Google Places API...');
       print('📍 Ubicación: $latitude, $longitude');
-      print('🔍 Tipo: $type');
-      print('🔍 Palabra clave: $keyword');
+      print('🔍 Tipo: $type, Keyword: $keyword');
 
       final uri = Uri.parse(url).replace(queryParameters: params);
-      final response = await http.get(uri);
+      final response = await http.get(uri).timeout(
+        const Duration(seconds: 15),
+        onTimeout: () {
+          throw Exception('Timeout conectando con Google Places API');
+        },
+      );
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
+        final status = data['status'];
         
-        if (data['status'] == 'OK' || data['status'] == 'ZERO_RESULTS') {
+        print('📊 Google Places Status: $status');
+        
+        if (status == 'OK') {
           final results = data['results'] as List;
-          print('✅ Google Places API devolvió: ${results.length} resultados');
+          print('✅ Google Places: ${results.length} resultados');
           
           final listings = <MarketplaceListing>[];
           
           for (int i = 0; i < results.length && i < limit; i++) {
             final place = results[i];
-            final listing = await _convertPlaceToMarketplaceListing(place, i);
+            final listing = _convertPlaceToListing(place, i);
             if (listing != null) {
               listings.add(listing);
             }
           }
           
           return listings;
+        } else if (status == 'ZERO_RESULTS') {
+          print('ℹ️ Google Places: Sin resultados en esta zona');
+          return [];
+        } else if (status == 'REQUEST_DENIED') {
+          print('❌ Google Places: API Key inválida o sin permisos');
+          print('   Verifica que la API Key tenga habilitado Places API');
+          return [];
+        } else if (status == 'OVER_QUERY_LIMIT') {
+          print('❌ Google Places: Límite de consultas excedido');
+          return [];
         } else {
-          print('❌ Error Google Places API: ${data['status']}');
+          print('❌ Google Places error: $status');
+          if (data['error_message'] != null) {
+            print('   Mensaje: ${data['error_message']}');
+          }
           return [];
         }
       } else {
-        print('❌ Error HTTP Google Places: ${response.statusCode}');
+        print('❌ HTTP Error: ${response.statusCode}');
         return [];
       }
     } catch (e) {
-      print('❌ Error en Google Places API: $e');
+      print('❌ Error Google Places: $e');
       return [];
     }
   }
 
-  /// Buscar agencias inmobiliarias
-  static Future<List<MarketplaceListing>> searchRealEstateAgencies({
+  /// Búsqueda comprehensiva de propiedades
+  static Future<List<MarketplaceListing>> searchComprehensive({
     required double latitude,
     required double longitude,
     double radius = 5000,
-    int limit = 15,
-  }) async {
-    return await searchProperties(
-      latitude: latitude,
-      longitude: longitude,
-      radius: radius,
-      type: 'real_estate_agency',
-      keyword: 'renta venta inmobiliaria',
-      limit: limit,
-    );
-  }
-
-  /// Buscar hoteles y hospedaje (que pueden tener rentas)
-  static Future<List<MarketplaceListing>> searchLodging({
-    required double latitude,
-    required double longitude,
-    double radius = 5000,
-    int limit = 15,
-  }) async {
-    return await searchProperties(
-      latitude: latitude,
-      longitude: longitude,
-      radius: radius,
-      type: 'lodging',
-      keyword: 'renta mensual departamento',
-      limit: limit,
-    );
-  }
-
-  /// Buscar establecimientos generales con filtros
-  static Future<List<MarketplaceListing>> searchWithFilters({
-    required double latitude,
-    required double longitude,
-    double radius = 5000,
-    String type = 'establishment',
-    List<String> keywords = const ['renta', 'departamento', 'casa', 'inmueble'],
-    int minPrice = 5000,
-    int maxPrice = 20000,
     int limit = 20,
   }) async {
-    try {
-      final apiKey = dotenv.env['GOOGLE_PLACES_API_KEY'];
-      if (apiKey == null || apiKey.isEmpty) {
-        print('❌ Google Places API Key no configurada');
-        return [];
-      }
-
-      final allListings = <MarketplaceListing>[];
-      
-      // Buscar con cada palabra clave
-      for (final keyword in keywords) {
-        final url = '$_baseUrl/nearbysearch/json';
-        final params = {
-          'location': '$latitude,$longitude',
-          'radius': radius.toString(),
-          'type': type,
-          'keyword': keyword,
-          'key': apiKey,
-        };
-
-        final uri = Uri.parse(url).replace(queryParameters: params);
-        final response = await http.get(uri);
-
-        if (response.statusCode == 200) {
-          final data = json.decode(response.body);
-          
-          if (data['status'] == 'OK') {
-            final results = data['results'] as List;
-            print('✅ Encontrados ${results.length} resultados para "$keyword"');
-            
-            for (final place in results) {
-              final listing = await _convertPlaceToMarketplaceListing(place, allListings.length);
-              if (listing != null && 
-                  listing.price >= minPrice && 
-                  listing.price <= maxPrice) {
-                allListings.add(listing);
-              }
-            }
-          }
-        }
-        
-        // Evitar rate limiting
-        await Future.delayed(const Duration(milliseconds: 200));
-      }
-      
-      // Eliminar duplicados y limitar resultados
-      final uniqueListings = <String, MarketplaceListing>{};
-      for (final listing in allListings) {
-        if (!uniqueListings.containsKey(listing.id)) {
-          uniqueListings[listing.id] = listing;
-        }
-      }
-      
-      final finalListings = uniqueListings.values.take(limit).toList();
-      print('✅ Propiedades filtradas encontradas: ${finalListings.length}');
-      
-      return finalListings;
-      
-    } catch (e) {
-      print('❌ Error en búsqueda con filtros: $e');
+    if (!isConfigured) {
+      print('⚠️ Google Places API no configurada - Propiedades deshabilitadas');
       return [];
     }
+
+    print('🏠 Búsqueda comprehensiva de propiedades...');
+    
+    final allListings = <MarketplaceListing>[];
+    
+    // Búsquedas con diferentes tipos
+    final searches = [
+      {'type': 'real_estate_agency', 'keyword': 'inmobiliaria renta venta'},
+      {'type': 'lodging', 'keyword': 'departamento renta'},
+    ];
+    
+    for (final search in searches) {
+      try {
+        final listings = await searchProperties(
+          latitude: latitude,
+          longitude: longitude,
+          radius: radius,
+          type: search['type']!,
+          keyword: search['keyword']!,
+          limit: limit ~/ searches.length,
+        );
+        allListings.addAll(listings);
+        
+        // Pequeño delay para no saturar la API
+        await Future.delayed(const Duration(milliseconds: 200));
+      } catch (e) {
+        print('⚠️ Error en búsqueda ${search['type']}: $e');
+      }
+    }
+    
+    // Eliminar duplicados
+    final uniqueIds = <String>{};
+    final uniqueListings = allListings.where((listing) {
+      if (uniqueIds.contains(listing.id)) return false;
+      uniqueIds.add(listing.id);
+      return true;
+    }).take(limit).toList();
+    
+    print('✅ Total propiedades únicas: ${uniqueListings.length}');
+    return uniqueListings;
   }
 
-  /// Convertir un lugar de Google Places a MarketplaceListing
-  static Future<MarketplaceListing?> _convertPlaceToMarketplaceListing(
-    Map<String, dynamic> place, 
+  /// Convertir lugar de Google Places a MarketplaceListing
+  static MarketplaceListing? _convertPlaceToListing(
+    Map<String, dynamic> place,
     int index,
-  ) async {
+  ) {
     try {
-      final name = place['name'] ?? 'Propiedad en renta';
-      final rating = place['rating']?.toDouble() ?? 4.0;
+      final name = place['name'] ?? 'Propiedad';
+      final placeId = place['place_id'] ?? 'unknown_$index';
+      final rating = (place['rating'] ?? 4.0).toDouble();
       final priceLevel = place['price_level'] ?? 2;
       final types = List<String>.from(place['types'] ?? []);
       
-      // Determinar precio basado en rating y price_level
-      double basePrice = 8000.0;
-      if (priceLevel == 1) basePrice = 6000.0;
-      if (priceLevel == 2) basePrice = 8000.0;
-      if (priceLevel == 3) basePrice = 12000.0;
-      if (priceLevel == 4) basePrice = 18000.0;
+      // Determinar precio estimado
+      double price = 8000.0;
+      if (priceLevel == 1) price = 5000.0;
+      if (priceLevel == 2) price = 8000.0;
+      if (priceLevel == 3) price = 15000.0;
+      if (priceLevel == 4) price = 25000.0;
+      price = price * (rating / 4.0);
       
-      // Ajustar precio basado en rating
-      final adjustedPrice = basePrice * (rating / 4.0);
-      
-      // Determinar categoría basada en tipos
-      String category = 'Departamento';
+      // Determinar categoría
+      String category = 'Propiedad';
       if (types.contains('real_estate_agency')) {
         category = 'Inmobiliaria';
       } else if (types.contains('lodging')) {
         category = 'Hospedaje';
-      } else if (name.toLowerCase().contains('casa')) {
-        category = 'Casa';
-      } else if (name.toLowerCase().contains('estudio')) {
-        category = 'Estudio';
       }
       
-      // Obtener ubicación
+      // Ubicación
       final geometry = place['geometry'];
       final location = geometry?['location'];
-      final lat = location?['lat']?.toDouble() ?? 20.6597;
-      final lng = location?['lng']?.toDouble() ?? -103.3496;
+      final lat = (location?['lat'] ?? 20.6597).toDouble();
+      final lng = (location?['lng'] ?? -103.3496).toDouble();
       
-      // Obtener dirección
       final vicinity = place['vicinity'] ?? 'Guadalajara, Jalisco';
       
-      // Obtener imagen real de Google Places si está disponible
+      // Imagen si está disponible
       String imageUrl = '';
       final photos = place['photos'] as List?;
       if (photos != null && photos.isNotEmpty) {
-        // Usar la primera foto disponible
         final photoRef = photos[0]['photo_reference'];
-        final apiKey = dotenv.env['GOOGLE_PLACES_API_KEY'];
-        if (photoRef != null && apiKey != null) {
-          imageUrl = 'https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=$photoRef&key=$apiKey';
+        if (photoRef != null && Config.hasValidGooglePlacesKey) {
+          imageUrl = 'https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=$photoRef&key=${Config.googlePlacesApiKey}';
         }
       }
       
       return MarketplaceListing(
-        id: 'google_places_${place['place_id'] ?? index}',
+        id: 'gp_$placeId',
         title: name,
-        description: 'Propiedad encontrada a través de Google Places. ${types.isNotEmpty ? 'Tipo: ${types.join(', ')}' : ''}',
-        price: adjustedPrice,
+        description: 'Encontrado via Google Places. Rating: ${rating.toStringAsFixed(1)}⭐',
+        price: price,
         location: vicinity,
         latitude: lat,
         longitude: lng,
         imageUrl: imageUrl,
         category: category,
       );
-      
     } catch (e) {
-      print('❌ Error convirtiendo lugar: $e');
+      print('⚠️ Error convirtiendo lugar: $e');
       return null;
     }
   }
 
-  /// Obtener detalles adicionales de un lugar
+  /// Obtener detalles de un lugar
   static Future<Map<String, dynamic>?> getPlaceDetails(String placeId) async {
-    try {
-      final apiKey = dotenv.env['GOOGLE_PLACES_API_KEY'];
-      if (apiKey == null || apiKey.isEmpty) return null;
+    if (!isConfigured) return null;
 
+    try {
       final url = '$_baseUrl/details/json';
       final params = {
         'place_id': placeId,
-        'fields': 'name,formatted_address,formatted_phone_number,website,rating,reviews,photos',
-        'key': apiKey,
+        'fields': 'name,formatted_address,formatted_phone_number,website,rating,photos',
+        'key': Config.googlePlacesApiKey,
       };
 
       final uri = Uri.parse(url).replace(queryParameters: params);
@@ -279,66 +236,10 @@ class GooglePlacesMarketplaceService {
           return data['result'];
         }
       }
-      
       return null;
     } catch (e) {
-      print('❌ Error obteniendo detalles del lugar: $e');
+      print('❌ Error obteniendo detalles: $e');
       return null;
     }
-  }
-
-  /// Buscar propiedades con múltiples tipos y filtros
-  static Future<List<MarketplaceListing>> searchComprehensive({
-    required double latitude,
-    required double longitude,
-    double radius = 5000,
-    int limit = 20,
-  }) async {
-    print('🔍 Búsqueda comprehensiva de propiedades...');
-    
-    final allListings = <MarketplaceListing>[];
-    
-    // Buscar en diferentes categorías
-    final searchTypes = [
-      {'type': 'real_estate_agency', 'keyword': 'renta venta inmobiliaria'},
-      {'type': 'lodging', 'keyword': 'renta mensual departamento'},
-      {'type': 'establishment', 'keyword': 'renta casa departamento'},
-      {'type': 'establishment', 'keyword': 'inmueble renta'},
-    ];
-    
-    for (final searchType in searchTypes) {
-      try {
-        final listings = await searchProperties(
-          latitude: latitude,
-          longitude: longitude,
-          radius: radius,
-          type: searchType['type']!,
-          keyword: searchType['keyword']!,
-          limit: limit ~/ searchTypes.length,
-        );
-        
-        allListings.addAll(listings);
-        
-        // Delay para evitar rate limiting
-        await Future.delayed(const Duration(milliseconds: 300));
-        
-      } catch (e) {
-        print('❌ Error en búsqueda ${searchType['type']}: $e');
-      }
-    }
-    
-    // Eliminar duplicados basado en place_id
-    final uniqueListings = <String, MarketplaceListing>{};
-    for (final listing in allListings) {
-      final key = listing.id.replaceAll('google_places_', '');
-      if (!uniqueListings.containsKey(key)) {
-        uniqueListings[key] = listing;
-      }
-    }
-    
-    final finalListings = uniqueListings.values.take(limit).toList();
-    print('✅ Búsqueda comprehensiva completada: ${finalListings.length} propiedades únicas');
-    
-    return finalListings;
   }
 }
